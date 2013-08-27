@@ -1,9 +1,12 @@
-(ns ctest.api.foo
+(ns tsp-demo.api.demo
   (:refer-clojure :exclude [defn])
   (:require
-    [ctest.http.rules      :refer :all]
-    [tailrecursion.castra  :refer [defn]]))
-
+    [tsp-demo.http.rules      :refer :all]
+    [tailrecursion.castra  :refer [defn]]
+    [tspSolver.google :as graph]
+    [tspSolver.ant-colony :as ant]
+))
+(comment
 (defn login [user pass]
   {:rpc [(login! user pass)]
    :pre [(not= user "omfg")]}
@@ -37,3 +40,8 @@
   [x y]
   {:rpc [(allow)]}
   (* x y))
+)
+(defn solve [stops]
+  "TODO: finish"
+  {:rpc [(allow)]}
+  (let [g (graph/google-graph stops "distance")]))
