@@ -30,7 +30,6 @@
 (def route-lines      (cell '#{}))
 (def current-route    (cell nil))
 (def route-loading    (cell nil))
-(cell ((log "[route]") current-route))
 
 
 (def stops            (cell (or (:stops state) (into [] (repeat 55 nil))))) 
@@ -47,8 +46,7 @@
 (defn process-route [route]
   (let [nodes (rest (butlast (:route route)))
         ms (map (fn [x] (first (filter #(= x (:id %)) @stop-markers))) nodes)]
-    (mapv #(let [m (:marker %1) i (str rt-image-pre %2 ".png")] ((log "[icon]") i) (.setIcon m i)) ms (range 1 (inc (count ms))))
-    ((log "[route]") ms)))
+    (mapv #(let [m (:marker %1) i (str rt-image-pre %2 ".png")] (.setIcon m i)) ms (range 1 (inc (count ms))))))
 
 (cell (process-route current-route))
 (cell (check-ready (ready? selected-depot selected-stops route-loading)))
