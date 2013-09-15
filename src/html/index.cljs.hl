@@ -1,0 +1,169 @@
+(ns tspdemo.html.index
+  (:require-macros
+   [tailrecursion.hoplon.macros  :refer [reactive-attributes]]
+   [tailrecursion.javelin.macros :refer [cell]])
+  (:require
+      [goog.events :as events]
+      [tailrecursion.javelin :as j]
+      [clojure.set :refer [difference select]]
+      [tailrecursion.castra :refer [async mkremote sync]]
+      [tailrecursion.hoplon.reactive :as r]))
+
+(def *map* nil)
+(def depot-image  "icons/warehouse-2.png")
+(def bakery-image "icons/patisserie.png")
+(def rt-image-pre "icons/number_")
+
+(def log #(fn [x] (.log js/console % (clj->js x))))
+(defn safe-nth [coll n] (try (nth coll n) (catch js/Error _)))
+(defn enable-button [id]
+  (.removeAttr (js/jQuery (clj->js (str "#" id))) "disabled"))
+(defn disable-button [id]
+  (.attr (js/jQuery (clj->js (str "#" id))) "disabled" "true"))
+
+;;; cells
+(def state            (cell nil))
+(def error            (cell nil))
+(def loading          (cell nil))
+(def depot-markers    (cell '#{}))
+(def stop-markers     (cell '#{}))
+(def route-lines      (cell '#{}))
+(def current-route    (cell nil))
+(def route-loading    (cell nil))
+
+
+(def stops            (cell (or (:stops state) (into [] (repeat 55 nil))))) 
+(def depots           (cell (or (:depots state) (into [] (repeat 10 nil))))) 
+(def selected-stops   (cell '#{}))
+(def selected-depot   (cell nil))
+(def ept-state  (mkremote 'tspdemo.api.demo/get-state state error loading))
+(def ept-route   (mkremote 'tspdemo.api.demo/get-route current-route error route-loading))
+
+(defn ready? [depot stops xhr]
+  (and (not (nil? depot)) (> (count stops) 5) (or (nil? xhr) (empty? xhr))))
+(defn check-ready [ready]
+  (if ready (enable-button "route") (disable-button "route")))
+
+(cell (check-ready (ready? selected-depot selected-stops route-loading)))
+
+(defn add-depot-marker! [marker id]
+  (swap! depot-markers conj {:id id :marker marker}))
+
+(defn add-stop-marker! [el]
+  (let [m  (first (select #(= el (:id %)) @stop-markers))
+        e  (first (filter #(= el (:id %)) @stops))]
+    (if (nil? m)
+      (let [markerOptions (clj->js {:position (google.maps.LatLng. (:lat e) (:lng e))
+                                    :title (:label e)
+                                    :icon bakery-image
+                                    :map *map*})
+            marker (google.maps.Marker. markerOptions)]
+        (swap! stop-markers conj {:id (:id e) :marker marker}))
+      (.setMap (:marker m) *map*))))
+
+(defn remove-stop-marker! [el]
+  (let [m (first (select #(= el (:id %)) @stop-markers))]
+    (if (not (nil? m))
+      (.setMap (:marker m) (clj->js nil)))))
+
+(defn watch-depot 
+  [k r o n]
+  (let [old-marker   (first (select #(= o (:id %)) @depot-markers))
+        new-marker   (first (select #(= n (:id %)) @depot-markers))
+        old-depot    (first (filter #(= o (:id %)) @depots))
+        new-depot    (first (filter #(= n (:id %)) @depots))]
+    (if (not (empty? old-marker)) (.setMap (:marker old-marker) (clj->js nil)))
+    (if (empty? new-marker)
+      (let [
+            markerOptions (clj->js {:position (google.maps.LatLng. (:lat new-depot) (:lng new-depot))
+                                    :title (:label new-depot)
+                                    :icon depot-image
+                                    :map *map*})
+            marker (google.maps.Marker. markerOptions)]
+        (add-depot-marker! marker (:id new-depot)))
+      (.setMap (:marker new-marker)(clj->js *map*)))))
+
+(defn watch-stops 
+  [k r o n]
+  (let [op (if (< (count o) (count n)) "added" "deleted")
+        el (case op
+             "added"   (difference (set n) (set o))
+             "deleted" (difference (set o) (set n)))]
+    (if (= op "added") (add-stop-marker! (first el)) (remove-stop-marker! (first el)))))
+
+
+(add-watch selected-stops :stops watch-stops)
+(add-watch selected-depot :depot watch-depot)
+
+(def loop-stops
+  (r/thing-looper
+    stops
+    (fn [stops i]
+      (let [stop (cell (safe-nth stops i))]
+       [(cell (:id stop))
+       (cell (:label stop))
+       (cell (:address stop))]))))
+
+(def loop-depots
+  (r/thing-looper
+    depots
+    (fn [depots i]
+      (let [depot (cell (safe-nth depots i))]
+       [(cell (:id depot))
+       (cell (:label depot))
+       (cell (:address depot))]))))
+        
+(defn select-stop! [id]
+  (swap! selected-stops (fn [stops] ((if (contains? stops id) disj conj) stops id))))
+
+(defn select-depot! [id]
+  (reset! selected-depot id))
+
+(defn route []
+  (let [s     (filter #(contains? @selected-stops (:id %)) @stops)
+        d     (first (filter #(= @selected-depot (:id %)) @depots))
+        stops (cons d s)]
+    (ept-route stops)))
+
+(defn initialize []
+  (let [mapOptions (clj->js{"center" (google.maps.LatLng. 25.763 -80.331)
+                    "zoom" 10
+                    "mapTypeId"  google.maps.MapTypeId.ROADMAP})]
+    (set! *map* (google.maps.Map. (.getElementById js/document "map-canvas") mapOptions))
+    (ept-state)))
+(events/listen js/window "load" initialize)
+ 
+(html
+  (head (title "TSP Demo")
+        (link {:rel "stylesheet" :type "text/css" :href "style.css"})
+        (script {:type "text/javascript" :src "https://maps.googleapis.com/maps/api/js?libraries=geometry&sensor=false"}))
+  (body 
+    (reactive-attributes
+      (div {:id "main-container"}
+       (div {:id "map-canvas-wrapper"}
+	      (div {:id "map-canvas"})
+        (div {:id "console"}))
+       (div {:id "list-wrapper"}
+        (fieldset {:class "stops-list"}(legend "Stops")(div {:class "stops-inner"} 
+		      (loop-stops
+		        (fn [i id label addr]
+		          (div
+		            {:class "stop-container" :do [(r/class! :hidden (not id))]}
+		            (input {:class "checky" :type "checkbox" :do [(r/value! (contains? selected-stops id))
+		                                          (r/on! :click #(select-stop! @id))]})
+		            (div {:class "address-container"}
+	                (div {:class "label" :do [(r/text! label)]})
+			            (div {:class "address" :do [(r/text! addr)]}))))
+		        (div {:class "stops"}))))
+        (fieldset {:class "depot-list"}(legend "Depots")(div {:class "depots-inner"}
+		      (loop-depots
+		        (fn [i id label addr]
+		          (div
+		            {:class "depot-container" :do [(r/class! :hidden (not id))]}
+		            (input {:class "checky" :type "radio" :name "depot" :do [(r/value! (= selected-depot id))
+		                                          (r/on! :click #(select-depot! @id))]})
+              (div {:class "address-container"}
+		            (div {:class "label" :do [(r/text! label)]})
+		            (div {:class "address" :do [(r/text! addr)]}))))
+		        (div {:class "stops"})))))
+       ))))

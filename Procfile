@@ -1,1 +1,1 @@
-web: java $JVM_OPTS -jar target/tsp-demo-0.1.0-SNAPSHOT-standalone.jar
+web: java $JVM_OPTS -jar target/tsp-demo-standalone.jar $PORT

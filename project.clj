@@ -11,16 +11,13 @@
   :uberjar-name "tsp-demo-standalone.jar"
   :repositories [["private" {:url "s3://tsprepo" :username :env :passphrase :env}]]  
   :dependencies [[org.clojure/clojure     "1.5.1"]
-                 [tsp "1.1.0-SNAPSHOT"]
+                 [tsp "1.1.2-SNAPSHOT"]
+                 [alandipert/interpol8 "0.0.3"]
+                 [ring "1.2.0"]
+                 [compojure "1.1.5"]
                  [net.java.dev.jets3t/jets3t "0.7.4"]
                  [tailrecursion/castra    "0.1.0-SNAPSHOT"]
-                 [tailrecursion/cljson "1.0.2"]
-                 [tailrecursion/hoplon "0.1.0-SNAPSHOT"]]
-  :source-paths ["src/clj"]
-  :hoplon       {:html-src      "src/html"
-                 :cljs-src      "src/cljs"
-                 :html-out      "resources/public"
-                 :pretty-print  false
-                 :cljsc-opts    {:warnings      true
-                                 :pretty-print  false
-                                 :optimizations :whitespace}})
+                 [tailrecursion/hoplon "1.1.0-SNAPSHOT"]]
+  ;:source-paths ["src/clj" "src" ]
+  :hoplon       {:cljsc-opts    {:pretty-print  false
+                                 :optimizations :advanced}})
