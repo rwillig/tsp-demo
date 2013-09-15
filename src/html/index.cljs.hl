@@ -30,6 +30,7 @@
 (def route-lines      (cell '#{}))
 (def current-route    (cell nil))
 (def route-loading    (cell nil))
+(cell ((log "[route]") current-route))
 
 
 (def stops            (cell (or (:stops state) (into [] (repeat 55 nil))))) 
@@ -43,7 +44,13 @@
   (and (not (nil? depot)) (> (count stops) 5) (or (nil? xhr) (empty? xhr))))
 (defn check-ready [ready]
   (if ready (enable-button "route") (disable-button "route")))
+(defn process-route [route]
+  (let [nodes (rest (butlast (:route route)))
+        ms (map (fn [x] (first (filter #(= x (:id %)) @stop-markers))) nodes)]
+    (mapv #(let [m (:marker %1) i (str rt-image-pre %2 ".png")] ((log "[icon]") i) (.setIcon m i)) ms (range 1 (inc (count ms))))
+    ((log "[route]") ms)))
 
+(cell (process-route current-route))
 (cell (check-ready (ready? selected-depot selected-stops route-loading)))
 
 (defn add-depot-marker! [marker id]
@@ -119,7 +126,7 @@
 (defn select-depot! [id]
   (reset! selected-depot id))
 
-(defn route []
+(defn route [event]
   (let [s     (filter #(contains? @selected-stops (:id %)) @stops)
         d     (first (filter #(= @selected-depot (:id %)) @depots))
         stops (cons d s)]
@@ -165,5 +172,7 @@
               (div {:class "address-container"}
 		            (div {:class "label" :do [(r/text! label)]})
 		            (div {:class "address" :do [(r/text! addr)]}))))
-		        (div {:class "stops"})))))
+		        (div {:class "stops"}))))
+        (div {:class "buttons"}
+          (button {:type "button" :class "button" :id "route" :disabled "true" :do [(r/on! :click #(do % (route)))]} "route")))
        ))))
