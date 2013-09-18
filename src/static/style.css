@@ -19,3 +19,14 @@
 .buttons {margin-top: 10px}
 .button {font-size: large;}
 .center {margin-right:auto;margin-left: auto; width:80%}
+#loading {
+  display:      none;
+  position:     fixed;
+  left:         50%;
+  margin-left:  -50px;
+  width:        100px;
+  padding:      10px;
+  text-align:   center;
+  color:        white;
+  background:   orange;
+  font-weight:  bold; }
