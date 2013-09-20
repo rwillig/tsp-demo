@@ -1,5 +1,7 @@
 (ns tspdemo.config
-  (:require [monger.core :as mg]))
+  (:require [monger.core :as mg])
+  (:import [org.bson.types ObjectId]
+           [com.mongodb DB WriteConcern MongoClient]))
 
 (def mongo-uri (System/getenv "MONGO_URI"))
 (def db (System/getenv "MONGO_DB"))

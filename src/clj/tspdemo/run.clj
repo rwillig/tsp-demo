@@ -2,7 +2,7 @@
   (:gen-class)
   (:require 
     [ring.adapter.jetty              :as jetty]
-    [compojure.route                 :as route]
+    ;[compojure.route                 :as route]
     [ring.middleware.resource        :refer [wrap-resource]]
     [ring.middleware.session         :refer [wrap-session]]
     [ring.middleware.session.cookie  :refer [cookie-store]]
@@ -17,11 +17,11 @@
     (wrap-resource "public")
     (wrap-file-info)))
 
-(defonce server (jetty/run-jetty #'app {:join? false :port 3000}))
+;(defonce server (jetty/run-jetty #'app {:join? false :port 3000}))
 (defn -main
   "I don't do a whole lot."
-  [& args])
-;  (jetty/run-jetty #'app {:join? false :port 3000}))
+  [& args]
+  (jetty/run-jetty #'app {:join? false :port 3000}))
 
   
 

@@ -15,6 +15,7 @@
 
 (defn mongo-connection []
   {:rpc [(allow)]}
+  (println *out* c/mongo-uri)
   (if 
 	  (and (c/mongo-instance?) (c/mongo-open?))
 	  mg/*mongodb-connection* (mg/connect-via-uri! c/mongo-uri)))
