@@ -5,9 +5,10 @@
   (:require
       [goog.events :as events]
       [tailrecursion.javelin :as j]
-      [clojure.set :refer [difference select]]
-      [tailrecursion.castra :refer [async mkremote sync]]
+      [clojure.set :as set :refer [difference]]
+      [tailrecursion.castra :refer [mkremote]]
       [tailrecursion.hoplon.reactive :as r]))
+
 (def *map* nil)
 (def meters-per-mile 1609.34)
 (def max-stops 50)
@@ -15,7 +16,8 @@
 (def max-lines (inc max-stops))
 (def depot-image  "icons/warehouse-2.png")
 (def stop-image "icons/patisserie.png")
-(def rt-image-pre "icons/number_")
+(def fmt-route-image "icons/%d/number_%d.png")
+(def colors ["#e02121" "#bf21de" "#1919cc" "#1be0d0" "#1bde28" "#dec41d"])
 
 (def log #(fn [x] (.log js/console % (clj->js x))))
 (defn safe-nth [coll n] (try (nth coll n) (catch js/Error _)))
@@ -30,11 +32,13 @@
 (def state            (cell nil))
 (def error            (cell nil))
 (def loading          (cell nil))
+(def trucks           (cell 1))
+(def capacity         (cell 50))
 (def depot-markers    (cell '#{}))
 (def stop-markers     (cell '#{}))
 (def route-lines      (cell (mapv #(google.maps.Polyline.) (range max-lines))))
-(def current-route    (cell nil))
-(def route-loading    (cell nil))
+(def solution         (cell nil))
+(def solution-loading (cell nil))
 
 (def stops            (cell (or (:stops state) (into #{} (mapv #(assoc {} :label %) (range max-stops)))))) 
 (def depots           (cell (or (:depots state) (into #{} (mapv #(assoc {} :label %) (range max-depots))))))
@@ -42,44 +46,51 @@
 (def sorted-depots    (cell (vec (sort-by :label depots))))
 (def selected-stops   (cell '#{}))
 (def selected-depot   (cell nil))
-(def ept-state  (mkremote 'tspdemo.api.demo/get-state state error loading))
-(def ept-route   (mkremote 'tspdemo.api.demo/get-route current-route error route-loading))
-(cell ((log "[route]") current-route))
+(def ept-state   (mkremote 'tspdemo.api.demo/get-state state error loading))
+(def ept-route   (mkremote 'tspdemo.api.demo/get-routes solution error solution-loading))
 
 (defn ready? [depot stops xhr]
   (and (not (nil? depot)) (> (count stops) 5) (or (nil? xhr) (empty? xhr))))
-(defn check-ready [ready]
-  (if ready (enable-button "route") (disable-button "route")))
+
+(def form-ready? (cell (ready? selected-depot selected-stops solution-loading)))
+
 
 (defn clear-lines []
   (mapv #(.setMap (clj->js %)) (clj->js nil)) @route-lines)
 (defn decode-path [coded]
   (google.maps.geometry.encoding/decodePath coded))
-(defn draw-line [path line]
+(defn available-lines []
+  (filter #(nil? (.getMap (clj->js %))) @route-lines))
+(defn draw-line [path line color]
   (let [l (clj->js line)
         p (clj->js path)
         m (clj->js *map*)]
     (.setPath l p)
+    (.setOptions l (clj->js {:strokeColor color}))
     (.setMap l m)))
-(defn draw-lines [lines]
-  (clear-lines)
-  (mapv #(draw-line (decode-path %1) %2) lines @route-lines))
 
-(defn process-route [route]
+(defn draw-lines [lines color]
+  (mapv #(draw-line (decode-path %1) %2 color) lines (available-lines)))
+
+(defn process-route [route n color]
   (let [nodes (rest (butlast (:route route)))
         ms (map (fn [x] (first (filter #(= x (:id %)) @stop-markers))) nodes)]
-    (mapv #(let [m (:marker %1) i (str rt-image-pre %2 ".png")] (.setIcon m i)) ms (range 1 (inc (count ms)))))
-  (.html (js/jQuery "#console") (str "Trip Total: " (meters-to-miles (:trip route))))
-  (draw-lines (:polylines route)))
+    (mapv #(let [m (:marker %1) i (format fmt-route-image n %2)] (.setIcon m i)) ms (range 1 (inc (count ms)))))
+  (.append (js/jQuery "#console") (p {:style (str "color:" color ";")} (str "Trip Total: " (meters-to-miles (:trip route)))))
+  (draw-lines (:polylines route) color))
 
-(cell (process-route current-route))
-(cell (check-ready (ready? selected-depot selected-stops route-loading)))
+(defn process-routes [s]
+    (clear-lines)
+    (.empty (js/jQuery "#console"))
+    (mapv #(process-route %1 (inc %2) %3) (:routes s) (range (count (:routes s))) colors))
+
+(cell (process-routes solution))
 
 (defn add-depot-marker! [marker id]
   (swap! depot-markers conj {:id id :marker marker}))
 
 (defn add-stop-marker! [el]
-  (let [m  (first (select #(= el (:id %)) @stop-markers))
+  (let [m  (first (set/select #(= el (:id %)) @stop-markers))
         e  (first (filter #(= el (:id %)) @stops))]
     (if (nil? m)
       (let [markerOptions (clj->js {:position (google.maps.LatLng. (:lat e) (:lng e))
@@ -88,17 +99,17 @@
                                     :map *map*})
             marker (google.maps.Marker. markerOptions)]
         (swap! stop-markers conj {:id (:id e) :marker marker}))
-      (.setMap (:marker m) *map*))))
+      ((.setIcon (:marker m) stop-image) (.setMap (:marker m) *map*)))))
 
 (defn remove-stop-marker! [el]
-  (let [m (first (select #(= el (:id %)) @stop-markers))]
+  (let [m (first (set/select #(= el (:id %)) @stop-markers))]
     (if (not (nil? m))
       (.setMap (:marker m) (clj->js nil)))))
 
 (defn watch-depot 
   [k r o n]
-  (let [old-marker   (first (select #(= o (:id %)) @depot-markers))
-        new-marker   (first (select #(= n (:id %)) @depot-markers))
+  (let [old-marker   (first (set/select #(= o (:id %)) @depot-markers))
+        new-marker   (first (set/select #(= n (:id %)) @depot-markers))
         old-depot    (first (filter #(= o (:id %)) @depots))
         new-depot    (first (filter #(= n (:id %)) @depots))]
     (if (not (empty? old-marker)) (.setMap (:marker old-marker) (clj->js nil)))
@@ -158,8 +169,8 @@
 (defn route [event]
   (let [s     (filter #(contains? @selected-stops (:id %)) @stops)
         d     (first (filter #(= @selected-depot (:id %)) @depots))
-        stops (cons d s)]
-    (ept-route stops)))
+        ps    {:stops s :depot d :trucks @trucks :capacity @capacity}]
+    (ept-route ps)))
 
 (defn initialize []
   (let [mapOptions (clj->js{"center" (google.maps.LatLng. 25.763 -80.331)
@@ -179,30 +190,43 @@
        (div {:id "map-canvas-wrapper"}
 	      (div {:id "map-canvas"})
         (div {:id "console"}))
-       (div {:id "list-wrapper"}
-        (fieldset {:class "stops-list"}(legend "Stops")(div {:class "stops-inner"} 
-		      (loop-stops
-		        (fn [i id label addr]
-		          (div
-		            {:class "stop-container" :do [(r/class! :hidden (not id))]}
-		            (input {:class "checky" :type "checkbox" :do [(r/value! (contains? selected-stops id))
-		                                          (r/on! :click #(select-stop! @id))]})
-		            (div {:class "address-container"}
-	                (div {:class "label" :do [(r/text! label)]})
+       
+       (form {:on-submit [#(if @form-ready? (route))]}
+	       (div {:id "list-wrapper"}
+	         (fieldset {:class "stops-list"}(legend "Stops")(div {:class "stops-inner"} 
+			      (loop-stops
+			        (fn [i id label addr]
+			          (div
+			            {:class "stop-container" :do [(r/class! :hidden (not id))]}
+			            (input {:class "checky" :type "checkbox" :do [(r/value! (contains? selected-stops id))
+			                                          (r/on! :click #(select-stop! @id))]})
+			            (div {:class "address-container"}
+		                (div {:class "label" :do [(r/text! label)]})
+				            (div {:class "address" :do [(r/text! addr)]}))))
+			        (div {:class "stops"}))))
+	        (fieldset {:class "depot-list"}(legend "Depots")(div {:class "depots-inner"}
+			      (loop-depots
+			        (fn [i id label addr]
+			          (div
+			            {:class "depot-container" :do [(r/class! :hidden (not id))]}
+			            (input {:class "checky" :type "radio" :name "depot" :do [(r/value! (= selected-depot id))
+			                                          (r/on! :click #(select-depot! @id))]})
+	              (div {:class "address-container"}
+			            (div {:class "label" :do [(r/text! label)]})
 			            (div {:class "address" :do [(r/text! addr)]}))))
-		        (div {:class "stops"}))))
-        (fieldset {:class "depot-list"}(legend "Depots")(div {:class "depots-inner"}
-		      (loop-depots
-		        (fn [i id label addr]
-		          (div
-		            {:class "depot-container" :do [(r/class! :hidden (not id))]}
-		            (input {:class "checky" :type "radio" :name "depot" :do [(r/value! (= selected-depot id))
-		                                          (r/on! :click #(select-depot! @id))]})
-              (div {:class "address-container"}
-		            (div {:class "label" :do [(r/text! label)]})
-		            (div {:class "address" :do [(r/text! addr)]}))))
-		        (div {:class "stops"}))))
-        (div {:class "buttons"}
-          (div (input {:type "checkbox" :class "checky" :id "select-all" :do [(r/on! :click #(toggle-all))]}) "Select All")
-          (button {:type "button" :class "button" :id "route" :disabled "true" :do [(r/on! :click #(do % (route)))]} "route")))
-       ))))
+			        (div {:class "stops"}))))
+	        (div {:class "buttons"}
+	          (div (label "All Stops: ") (input {:type "checkbox" :class "checky" :id "select-all" :do [(r/on! :click #(toggle-all))]})
+	            (label "Trucks: ") 
+	            (select {:size  "1" :name "trucks" :id "trucks" :on-change [#(reset! trucks ~trucks)]}
+	              (option {:value 1 :default true} "1")
+	              (option {:value 2} "2")
+	              (option {:value 3} "3")
+	              (option {:value 4} "4")
+	              (option {:value 5} "5")
+	              (option {:value 6} "6"))
+	            (label "Capacity: ") 
+	            (input {:type "range"  :id "capacity" :value @capacity :step "1" :min "10" :max @capacity :on-change [#(reset! capacity ~capacity)]}) (span {:do [(r/text! capacity)]})
+	            )
+	          (button {:type "button" :class "button" :id "route" :do [(r/attr! :disabled (not form-ready?))] :on-click [#(do % (route))]} "route"))))
+	       ))))
