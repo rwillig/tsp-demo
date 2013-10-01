@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?><web-app>
+  <servlet>
+    <servlet-name>tspdemo.run/app servlet</servlet-name>
+    <servlet-class>tspdemo.servlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>tspdemo.run/app servlet</servlet-name>
+    <url-pattern>/*</url-pattern>
+  </servlet-mapping>
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+  </welcome-file-list>
+</web-app>

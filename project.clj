@@ -14,6 +14,6 @@
                  [tailrecursion/castra    "0.1.0-SNAPSHOT"]
                  [tailrecursion/hoplon "1.1.0-SNAPSHOT"]]
   :source-paths ["src/clj"]
-  :ring         {:handler tspdemo.run/app}
+  :ring         {:handler tspdemo.run/app :web-xml "web.xml"}
   :hoplon       {:cljsc-opts    {:pretty-print  false
                                  :optimizations :advanced}})

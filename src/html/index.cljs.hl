@@ -13,7 +13,7 @@
 (def meters-per-mile 1609.34)
 (def max-stops 50)
 (def max-depots 5)
-(def max-lines (inc max-stops))
+(def max-lines 70)
 (def depot-image  "icons/warehouse-2.png")
 (def stop-image "icons/patisserie.png")
 (def fmt-route-image "icons/%d/number_%d.png")
