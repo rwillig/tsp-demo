@@ -32,8 +32,8 @@
 (def state            (cell nil))
 (def error            (cell nil))
 (def loading          (cell nil))
-(def trucks           (cell 1))
-(def capacity         (cell 50))
+(def trucks           (cell "1"))
+(def capacity         (cell "50"))
 (def depot-markers    (cell '#{}))
 (def stop-markers     (cell '#{}))
 (def route-lines      (cell (mapv #(google.maps.Polyline.) (range max-lines))))
@@ -75,9 +75,9 @@
 (defn process-route [route n color]
   (let [nodes (rest (butlast (:route route)))
         ms (map (fn [x] (first (filter #(= x (:id %)) @stop-markers))) nodes)]
-    (mapv #(let [m (:marker %1) i (format fmt-route-image n %2)] (.setIcon m i)) ms (range 1 (inc (count ms)))))
-  (.append (js/jQuery "#console") (p {:style (str "color:" color ";")} (str "Trip Total: " (meters-to-miles (:trip route)))))
-  (draw-lines (:polylines route) color))
+    (mapv #(let [m (:marker %1) i (format fmt-route-image n %2)] (.setIcon m i)) ms (range 1 (inc (count ms))))
+    (.append (js/jQuery "#console") (str "<div style=\"color:" color  ";\">Trip Total: " (meters-to-miles (:trip route)) "</div>"))
+    (draw-lines (:polylines route) color)))
 
 (defn process-routes [s]
     (clear-lines)
@@ -226,7 +226,7 @@
 	              (option {:value 5} "5")
 	              (option {:value 6} "6"))
 	            (label "Capacity: ") 
-	            (input {:type "range"  :id "capacity" :value @capacity :step "1" :min "10" :max @capacity :on-change [#(reset! capacity ~capacity)]}) (span {:do [(r/text! capacity)]})
+	            (input {:type "range"  :id "capacity" :value @capacity :step "1" :min "6" :max @capacity :on-change [#(reset! capacity ~capacity)]}) (span {:do [(r/text! capacity)]})
 	            )
 	          (button {:type "button" :class "button" :id "route" :do [(r/attr! :disabled (not form-ready?))] :on-click [#(do % (route))]} "route"))))
 	       ))))
