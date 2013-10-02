@@ -9,11 +9,10 @@
   :uberjar-name "tsp-demo-standalone.jar"
   :dependencies [[org.clojure/clojure     "1.5.1"]
                  [tsp "1.1.2-SNAPSHOT"]
-                 [alandipert/interpol8 "0.0.3"]
+                 [ring-middleware-index-file "1.0.5-SNAPSHOT"]
                  [ring "1.2.0"]
                  [tailrecursion/castra    "0.1.0-SNAPSHOT"]
                  [tailrecursion/hoplon "1.1.0-SNAPSHOT"]]
   :source-paths ["src/clj"]
-  :ring         {:handler tspdemo.run/app :web-xml "web.xml"}
-  :hoplon       {:cljsc-opts    {:pretty-print  false
-                                 :optimizations :advanced}})
+  :war-resources-path "public"
+  :ring         {:handler tspdemo.run/app  })
