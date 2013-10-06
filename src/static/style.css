@@ -1,7 +1,7 @@
  html { height: 100% }
  body { height: 100%; padding: 0 }
  #footer {clear: both;}
- #main-container {height: 680px; width: 1255px;border:8px solid; border-radius:25px; padding:15px;background-color:#b0c4de;margin: 0 auto;}
+ #main-container {height: 730px; width: 1255px;border:8px solid; border-radius:25px; padding:15px;background-color:#b0c4de;margin: 0 auto;}
  #list-wrapper {width: 395px; height: 600px;display: inline-block}
  .stops-list {width: 395px; height: 385px;border:3px solid ; border-radius:15px;padding: 6px;}
  .stops-inner {overflow-y: scroll;width: 395px; height: 365px;}
@@ -11,14 +11,15 @@
  #map-canvas {height: 600px; width: 800px; border: 3px solid;}
  #console {width: 800px;border: 3px solid; height: 75px; overflow-y: scroll; background-color: white; margin-top: 5px;}
  .stop {height: 12px; width: 380px; padding: 8px;}
- .stop > input {margin: 30px}
-.hidden {display:none}
+ .stop > input {margin: 30px;}
+.hidden {display:none;}
 .label {font-weight: bold;}
 .address-container {display: inline-block}
 .checky {vertical-align: top}
 .buttons {margin-top: 10px}
 .button {font-size: large;}
 .center {margin-right:auto;margin-left: auto; width:80%}
+#footer {height: 40px;width: 1255px; border: 0px solid; padding: 8px;margin-left: 90%;}
 #loading {
   display:      none;
   position:     fixed;

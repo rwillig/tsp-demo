@@ -49,11 +49,13 @@
 (def ept-state   (mkremote 'tspdemo.api.demo/get-state state error loading))
 (def ept-route   (mkremote 'tspdemo.api.demo/get-routes solution error solution-loading))
 
+(cell (.log js/console (:trace error)))
+
 (defn ready? [depot stops xhr]
   (and (not (nil? depot)) (> (count stops) 5) (or (nil? xhr) (empty? xhr))))
 
 (def form-ready? (cell (ready? selected-depot selected-stops solution-loading)))
-
+(cell ((log "[state]") state))
 
 (defn clear-lines []
   (mapv #(.setMap (clj->js %)) (clj->js nil)) @route-lines)
@@ -99,7 +101,7 @@
                                     :map *map*})
             marker (google.maps.Marker. markerOptions)]
         (swap! stop-markers conj {:id (:id e) :marker marker}))
-      ((.setIcon (:marker m) stop-image) (.setMap (:marker m) *map*)))))
+      (do (.setIcon (:marker m) stop-image) (.setMap (:marker m) *map*)))))
 
 (defn remove-stop-marker! [el]
   (let [m (first (set/select #(= el (:id %)) @stop-markers))]
@@ -129,7 +131,6 @@
         els (case op
              "added"   (difference (set n) (set o))
              "deleted" (difference (set o) (set n)))]
-    ;((log "[els]") els)
     (if (= op "added") 
       (mapv #(add-stop-marker! %) els) 
       (mapv #(remove-stop-marker! %) els))))
@@ -163,27 +164,33 @@
   (reset! selected-depot id))
 
 (defn toggle-all [e]
+  (let [all-stops (into #{} (map #(:id %) @stops))]
   (if (= (.attr (js/jQuery "#select-all") "checked") "checked")
-    (reset! selected-stops (into #{} (map #(:id %) @stops)))
-    (reset! selected-stops #{})))
+    (reset! selected-stops all-stops)
+    (reset! selected-stops #{}))))
 (defn route [event]
   (let [s     (filter #(contains? @selected-stops (:id %)) @stops)
         d     (first (filter #(= @selected-depot (:id %)) @depots))
-        ps    {:stops s :depot d :trucks @trucks :capacity @capacity}]
-    (ept-route ps)))
+        ps    {:stops s :depot d :trucks @trucks :capacity @capacity}]    
+    (do
+      (.track js/mixpanel (clj->js "Do Route") (clj->js {:stops (count s) :trucks (js/parseInt @trucks) :capacity (js/parseInt @capacity)}))
+      (ept-route ps))))
 
 (defn initialize []
   (let [mapOptions (clj->js{"center" (google.maps.LatLng. 25.763 -80.331)
                     "zoom" 10
                     "mapTypeId"  google.maps.MapTypeId.ROADMAP})]
     (set! *map* (google.maps.Map. (.getElementById js/document "map-canvas") mapOptions))
-    (ept-state)))
+    (ept-state)
+    (.track js/mixpanel (clj->js "View Map"))))
 (events/listen js/window "load" initialize)
+
  
 (html
   (head (title "TSP Demo")
         (link {:rel "stylesheet" :type "text/css" :href "style.css"})
-        (script {:type "text/javascript" :src "https://maps.googleapis.com/maps/api/js?libraries=geometry&sensor=false"}))
+        (script {:type "text/javascript" :src "https://maps.googleapis.com/maps/api/js?libraries=geometry&sensor=false"})
+        (script {:type "text/javascript" :src "mixpanel.js"}))
   (body 
     (reactive-attributes
       (div {:id "main-container"}
@@ -229,4 +236,5 @@
 	            (input {:type "range"  :id "capacity" :value @capacity :step "1" :min "6" :max @capacity :on-change [#(reset! capacity ~capacity)]}) (span {:do [(r/text! capacity)]})
 	            )
 	          (button {:type "button" :class "button" :id "route" :do [(r/attr! :disabled (not form-ready?))] :on-click [#(do % (route))]} "route"))))
+       (div {:id "footer"} (a {:href "https://mixpanel.com/f/partner"} (img {:src "//cdn.mxpnl.com/site_media/images/partner/badge_blue.png" :alt "Mobile Analytics"})))
 	       ))))
