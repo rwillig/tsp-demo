@@ -55,7 +55,7 @@
 
 (defn get-route [stops]
   {:rpc [(allow)]}
-  (let [g       (graph/google-graph stops "distance")
+  (let [g       (graph/concurrent-google-graph stops "distance")
         s       (select-keys (ac/run g 0) [:vertices :trip])
         ts      (tour-stops stops (:vertices s))
         p       (tour-polylines ts)]

@@ -1,13 +1,24 @@
 (ns tspdemo.html.index
   (:require-macros
-   [tailrecursion.hoplon.macros  :refer [reactive-attributes]]
-   [tailrecursion.javelin.macros :refer [cell]])
+   [tailrecursion.hoplon  :refer [with-frp]]
+   [tailrecursion.javelin :refer [cell= defc defc=]])
   (:require
+    	[goog.string :as gstring]
       [goog.events :as events]
-      [tailrecursion.javelin :as j]
+      [tailrecursion.javelin :refer [cell]]
       [clojure.set :as set :refer [difference]]
       [tailrecursion.castra :refer [mkremote]]
-      [tailrecursion.hoplon.reactive :as r]))
+      [tailrecursion.hoplon :as r]))
+
+(defn format
+  "Formats a string using goog.string.format."
+  [fmt & args]
+  (apply gstring/format fmt args))
+
+(defn printf
+  "Prints formatted output, as per format"
+  [fmt & args]
+  (print (apply format fmt args)))
 
 (def *map* nil)
 (def meters-per-mile 1609.34)
@@ -29,33 +40,34 @@
   (format "%.2f miles" (/ (js/parseInt meters) meters-per-mile)))
 
 ;;; cells
-(def state            (cell nil))
-(def error            (cell nil))
-(def loading          (cell nil))
-(def trucks           (cell "1"))
-(def capacity         (cell "50"))
-(def depot-markers    (cell '#{}))
-(def stop-markers     (cell '#{}))
-(def route-lines      (cell (mapv #(google.maps.Polyline.) (range max-lines))))
-(def solution         (cell nil))
-(def solution-loading (cell nil))
+(defc state            nil)
+(defc error            nil)
+(defc loading          nil)
+(defc trucks           "1")
+(defc capacity         "50")
+(defc depot-markers    '#{})
+(defc stop-markers     '#{})
+(defc route-lines      (mapv #(google.maps.Polyline.) (range max-lines)))
+(defc solution         nil)
+(defc solution-loading nil)
+(defc selected-stops   #{})
+(defc selected-depot   nil)
 
-(def stops            (cell (or (:stops state) (into #{} (mapv #(assoc {} :label %) (range max-stops)))))) 
-(def depots           (cell (or (:depots state) (into #{} (mapv #(assoc {} :label %) (range max-depots))))))
-(def sorted-stops     (cell (vec (sort-by :label stops))))
-(def sorted-depots    (cell (vec (sort-by :label depots))))
-(def selected-stops   (cell '#{}))
-(def selected-depot   (cell nil))
+(defc= stops           (or (:stops state) (into #{} (mapv #(assoc {} :label %) (range max-stops)))))
+(defc= depots          (or (:depots state) (into #{} (mapv #(assoc {} :label %) (range max-depots)))))
+(defc= sorted-stops    (vec (sort-by :label stops)))
+(defc= sorted-depots   (vec (sort-by :label depots)))
+
 (def ept-state   (mkremote 'tspdemo.api.demo/get-state state error loading))
 (def ept-route   (mkremote 'tspdemo.api.demo/get-routes solution error solution-loading))
 
-(cell (.log js/console (:trace error)))
+(cell= (.log js/console (:trace error)))
 
 (defn ready? [depot stops xhr]
   (and (not (nil? depot)) (> (count stops) 5) (or (nil? xhr) (empty? xhr))))
 
-(def form-ready? (cell (ready? selected-depot selected-stops solution-loading)))
-(cell ((log "[state]") state))
+(def form-ready? (cell= (ready? selected-depot selected-stops solution-loading)))
+(cell= ((log "[state]") state))
 
 (defn clear-lines []
   (mapv #(.setMap (clj->js %)) (clj->js nil)) @route-lines)
@@ -86,7 +98,7 @@
     (.empty (js/jQuery "#console"))
     (mapv #(process-route %1 (inc %2) %3) (:routes s) (range (count (:routes s))) colors))
 
-(cell (process-routes solution))
+(cell= (process-routes solution))
 
 (defn add-depot-marker! [marker id]
   (swap! depot-markers conj {:id id :marker marker}))
@@ -143,19 +155,19 @@
   (r/thing-looper
     sorted-stops
     (fn [stops i]
-      (let [stop (cell (safe-nth stops i))]
-       [(cell (:id stop))
-       (cell (:label stop))
-       (cell (:address stop))]))))
+      (let [stop (cell= (safe-nth stops i))]
+       [(cell= (:id stop))
+       (cell= (:label stop))
+       (cell= (:address stop))]))))
 
 (def loop-depots
   (r/thing-looper
     sorted-depots
     (fn [depots i]
-      (let [depot (cell (safe-nth depots i))]
-       [(cell (:id depot))
-       (cell (:label depot))
-       (cell (:address depot))]))))
+      (let [depot (cell= (safe-nth depots i))]
+       [(cell= (:id depot))
+       (cell= (:label depot))
+       (cell= (:address depot))]))))
         
 (defn select-stop! [id]
   (swap! selected-stops (fn [stops] ((if (contains? stops id) disj conj) stops id))))
@@ -168,6 +180,7 @@
   (if (= (.attr (js/jQuery "#select-all") "checked") "checked")
     (reset! selected-stops all-stops)
     (reset! selected-stops #{}))))
+
 (defn route [event]
   (let [s     (filter #(contains? @selected-stops (:id %)) @stops)
         d     (first (filter #(= @selected-depot (:id %)) @depots))
@@ -180,27 +193,35 @@
   (let [mapOptions (clj->js{"center" (google.maps.LatLng. 25.763 -80.331)
                     "zoom" 10
                     "mapTypeId"  google.maps.MapTypeId.ROADMAP})]
-    (set! *map* (google.maps.Map. (.getElementById js/document "map-canvas") mapOptions))
-    (ept-state)
-    (.track js/mixpanel (clj->js "View Map"))))
+    (do 
+      (set! *map* (google.maps.Map. (.getElementById js/document "map-canvas") mapOptions))
+      (.getScript js/jQuery "chardinjs.min.js")
+    	;(.chardinJs (js/jQuery "body") "start")
+    	(ept-state)
+    	(.track js/mixpanel (clj->js "View Map")))))
 (events/listen js/window "load" initialize)
 
+(defn guide [e]
+  (.chardinJs (js/jQuery "body") "toggle"))
  
 (html
   (head (title "TSP Demo")
         (link {:rel "stylesheet" :type "text/css" :href "style.css"})
+        (link {:rel "stylesheet" :type "text/css" :href "chardinjs.css"})
         (script {:type "text/javascript" :src "https://maps.googleapis.com/maps/api/js?libraries=geometry&sensor=false"})
         (script {:type "text/javascript" :src "mixpanel.js"}))
   (body 
-    (reactive-attributes
+    (with-frp
       (div {:id "main-container"}
+       (div {:id "top-banner"} (span))
        (div {:id "map-canvas-wrapper"}
 	      (div {:id "map-canvas"})
-        (div {:id "console"}))
+        (div {:id "console" :data-intro "Look here for important messages about the routes" :data-position "top"}))
        
        (form {:on-submit [#(if @form-ready? (route))]}
 	       (div {:id "list-wrapper"}
-	         (fieldset {:class "stops-list"}(legend "Stops")(div {:class "stops-inner"} 
+	         (fieldset {:class "stops-list" :data-intro "The list of stops to choose. Pick at least 6" :data-position "left"}
+            (legend "Stops")(div {:class "stops-inner"} 
 			      (loop-stops
 			        (fn [i id label addr]
 			          (div
@@ -211,7 +232,8 @@
 		                (div {:class "label" :do [(r/text! label)]})
 				            (div {:class "address" :do [(r/text! addr)]}))))
 			        (div {:class "stops"}))))
-	        (fieldset {:class "depot-list"}(legend "Depots")(div {:class "depots-inner"}
+	        (fieldset {:class "depot-list"}
+           (legend "Depots")(div {:class "depots-inner"}
 			      (loop-depots
 			        (fn [i id label addr]
 			          (div
@@ -221,20 +243,20 @@
 	              (div {:class "address-container"}
 			            (div {:class "label" :do [(r/text! label)]})
 			            (div {:class "address" :do [(r/text! addr)]}))))
-			        (div {:class "stops"}))))
+			        (div {:class "stops" :data-intro "The starting point for all routes. Pick 1 only." :data-position "left"}))))
 	        (div {:class "buttons"}
-	          (div (label "All Stops: ") (input {:type "checkbox" :class "checky" :id "select-all" :do [(r/on! :click #(toggle-all))]})
-	            (label "Trucks: ") 
+	          (div (span {:data-intro "Select all stops." :data-position "left"}(label "All Stops: ") (input {:type "checkbox" :class "checky" :id "select-all" :do [(r/on! :click #(toggle-all))]}))
+	            (span {:data-intro "How many trucks" :data-position "top"}(label "Trucks: ") 
 	            (select {:size  "1" :name "trucks" :id "trucks" :on-change [#(reset! trucks ~trucks)]}
 	              (option {:value 1 :default true} "1")
 	              (option {:value 2} "2")
 	              (option {:value 3} "3")
 	              (option {:value 4} "4")
 	              (option {:value 5} "5")
-	              (option {:value 6} "6"))
-	            (label "Capacity: ") 
-	            (input {:type "range"  :id "capacity" :value @capacity :step "1" :min "6" :max @capacity :on-change [#(reset! capacity ~capacity)]}) (span {:do [(r/text! capacity)]})
+	              (option {:value 6} "6")))
+	            (span {:data-intro "Stops per truck" :data-position "top"} (label "Capacity: ") 
+	            (input {:type "range"  :id "capacity" :value @capacity :step "1" :min "6" :max @capacity :on-change [#(reset! capacity ~capacity)]}) (span {:do [(r/text! capacity)]}))
 	            )
 	          (button {:type "button" :class "button" :id "route" :do [(r/attr! :disabled (not form-ready?))] :on-click [#(do % (route))]} "route"))))
-       (div {:id "footer"} (a {:href "https://mixpanel.com/f/partner"} (img {:src "//cdn.mxpnl.com/site_media/images/partner/badge_blue.png" :alt "Mobile Analytics"})))
+       (div {:id "footer"} (a {:href "#" :class "guide" :on-click [#(do % (guide))]} "How the heck does this thing work?") (a {:href "https://mixpanel.com/f/partner"} (img {:src "//cdn.mxpnl.com/site_media/images/partner/badge_blue.png" :alt "Mobile Analytics"})))
 	       ))))

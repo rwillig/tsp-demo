@@ -9,7 +9,7 @@
  .depot-inner {width: 395px; height: 185px;overflow-y: scroll;}
  #map-canvas-wrapper { float: left; margin-right: 25px;}
  #map-canvas {height: 600px; width: 800px; border: 3px solid;}
- #console {width: 800px;border: 3px solid; height: 75px; overflow-y: scroll; background-color: white; margin-top: 5px;}
+ #console {width: 800px;border: 3px solid; height: 75px; overflow-y: scroll; background-color: #d3d3d3; margin-top: 5px;}
  .stop {height: 12px; width: 380px; padding: 8px;}
  .stop > input {margin: 30px;}
 .hidden {display:none;}
@@ -19,7 +19,8 @@
 .buttons {margin-top: 10px}
 .button {font-size: large;}
 .center {margin-right:auto;margin-left: auto; width:80%}
-#footer {height: 40px;width: 1255px; border: 0px solid; padding: 8px;margin-left: 90%;}
+#footer {height: 40px;width: 1255px; border: 0px solid; padding: 8px;margin-left: 30%;vertical-align: center;}
+.guide {margin-right: 12px}
 #loading {
   display:      none;
   position:     fixed;

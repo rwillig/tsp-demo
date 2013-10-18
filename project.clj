@@ -11,8 +11,8 @@
                  [tsp "1.1.2-SNAPSHOT"]
                  [ring-middleware-index-file "1.0.5-SNAPSHOT"]
                  [ring "1.2.0"]
-                 [tailrecursion/castra    "0.1.0-SNAPSHOT"]
-                 [tailrecursion/hoplon "1.1.0-SNAPSHOT"]]
+                 [tailrecursion/castra    "0.1.0"]
+                 [tailrecursion/hoplon "1.1.0"]]
   :source-paths ["src/clj"]
   :war-resources-path "public"
   :ring         {:handler tspdemo.run/app  })
