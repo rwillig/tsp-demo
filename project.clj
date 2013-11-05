@@ -8,11 +8,11 @@
   :min-lein-version "2.0.0"
   :uberjar-name "tsp-demo-standalone.jar"
   :dependencies [[org.clojure/clojure     "1.5.1"]
-                 [tsp "1.1.2-SNAPSHOT"]
+                 [tsp "1.1.3-SNAPSHOT"]
+                 ;[incanter "1.2.3-SNAPSHOT"]
                  [ring-middleware-index-file "1.0.5-SNAPSHOT"]
                  [ring "1.2.0"]
-                 [tailrecursion/castra    "0.1.0"]
-                 [tailrecursion/hoplon "1.1.0"]]
+                 [tailrecursion/hoplon "3.2.0"]]
   :source-paths ["src/clj"]
   :war-resources-path "public"
   :ring         {:handler tspdemo.run/app  })
