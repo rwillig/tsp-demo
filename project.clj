@@ -12,7 +12,7 @@
                  ;[incanter "1.2.3-SNAPSHOT"]
                  [ring-middleware-index-file "1.0.5-SNAPSHOT"]
                  [ring "1.2.0"]
-                 [tailrecursion/hoplon "3.2.0"]]
+                 [tailrecursion/hoplon "3.2.1"]]
   :source-paths ["src/clj"]
   :war-resources-path "public"
   :ring         {:handler tspdemo.run/app  })

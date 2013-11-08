@@ -1,4 +1,7 @@
 (page index.html
+  (:prepend-head 
+    	(script {:type "text/javascript" :src "https://maps.googleapis.com/maps/api/js?libraries=geometry&sensor=false"})
+      (script {:type "text/javascript" :src "mixpanel.js"}))
   (:refer-clojure :exclude [nth meta])
   (:require
     [tailrecursion.hoplon.util          :refer [nth name pluralize route-cell]]
@@ -45,13 +48,14 @@
 (defc capacity         "50")
 (defc depot-markers    '#{})
 (defc stop-markers     '#{})
-(defc route-lines      (mapv #(google.maps.Polyline.) (range max-lines)))
+(defc route-lines      nil)
 (defc solution         nil)
 (defc solution-loading nil)
 (defc selected-stops   #{})
 (defc selected-depot   nil)
 
 (defc= stops           (or (:stops state) (into #{} (mapv #(assoc {} :label %) (range max-stops)))))
+;(defc= stops           (:stops state))
 (defc= depots          (or (:depots state) (into #{} (mapv #(assoc {} :label %) (range max-depots)))))
 (defc= sorted-stops    (vec (sort-by :label stops)))
 (defc= sorted-depots   (vec (sort-by :label depots)))
@@ -178,10 +182,10 @@
     (do 
       (set! *map* (google.maps.Map. (.getElementById js/document "map-canvas") mapOptions))
       (.getScript js/jQuery "chardinjs.min.js")
-    	;(.chardinJs (js/jQuery "body") "start")
+      (reset! route-lines (mapv #(google.maps.Polyline.) (range max-lines)))
     	(ept-state)
     	(.track js/mixpanel (clj->js "View Map")))))
-(events/listen js/window "load" initialize)
+(add-initfn! initialize)
 
 (defn guide [e]
   (.chardinJs (js/jQuery "body") "toggle"))
@@ -190,8 +194,7 @@
   (head (title "TSP Demo")
         (link {:rel "stylesheet" :type "text/css" :href "style.css"})
         (link {:rel "stylesheet" :type "text/css" :href "chardinjs.css"})
-        (script {:type "text/javascript" :src "https://maps.googleapis.com/maps/api/js?libraries=geometry&sensor=false"})
-        (script {:type "text/javascript" :src "mixpanel.js"}))
+        )
   (body 
     (div {:id "main-container"}
      (div {:id "top-banner"} (span))
@@ -199,36 +202,36 @@
       (div {:id "map-canvas"})
       (div {:id "console" :data-intro "Look here for important messages about the routes" :data-position "top"}))
      
-     (form {:on-submit [#(if @form-ready? (route %))]}
+     (form {:on-submit #(if @form-ready? (route %))}
        (div {:id "list-wrapper"}
          (fieldset {:class "stops-list" :data-intro "The list of stops to choose. Pick at least 6" :data-position "left"}
           (legend "Stops")(div {:class "stops-inner"} 
 		      (loop-tpl
           	:size max-stops
-            :bindings [{:keys [id label addr]} stops]
+            :bindings [{:keys [id label address]} stops]
 	          (div
-	            {:class "stop-container" :do-class [:hidden (not id)]}
-	            (input {:class "checky" :type "checkbox" :do-value [(contains? selected-stops id)] :on-click [#(select-stop! @id)]})
+	            {:class "stop-container" :do-class (cell= {:hidden (not id)})}
+	            (input {:class "checky" :type "checkbox" :do-value (cell= (contains? selected-stops id)) :on-click #(select-stop! @id)})
 	            (div {:class "address-container"}
-                (div {:class "label" :do-text [label]})
-		            (div {:class "address" :do-text [addr]})))
+                (div {:class "label" :do-text label})
+		            (div {:class "address" :do-text address})))
 		        )))
         (fieldset {:class "depot-list" :data-intro "The starting point for all routes. Pick 1 only." :data-position "left"}
          (legend "Depots")(div {:class "depots-inner"}
 		      (loop-tpl
           	:size max-depots
-            :bindings [{:keys [id label addr]} depots]
+            :bindings [{:keys [id label address]} depots]
 	          (div
-	            {:class "depot-container" :do-class [:hidden (not id)]}
-	            (input {:class "checky" :type "radio" :name "depot" :do-value [(= selected-depot id)] :on-click [#(select-depot! @id)]})
+	            {:class "depot-container" :do-class (cell= {:hidden (not id)})}
+	            (input {:class "checky" :type "radio" :name "depot" :do-value (cell= (= selected-depot id)) :on-click #(select-depot! @id)})
             (div {:class "address-container"}
-	            (div {:class "label" :do-text [label]})
-	            (div {:class "address" :do-text [addr]}))))
+	            (div {:class "label" :do-text label})
+	            (div {:class "address" :do-text address}))))
 		        ))
         (div {:class "buttons"}
-          (div (span {:data-intro "Select all stops." :data-position "left"}(label "All Stops: ") (input {:type "checkbox" :class "checky" :id "select-all" :on-click [#(toggle-all %)]}))
+          (div (span {:data-intro "Select all stops." :data-position "left"}(label "All Stops: ") (input {:type "checkbox" :class "checky" :id "select-all" :on-click #(toggle-all %)}))
             (span {:data-intro "How many trucks" :data-position "top"}(label "Trucks: ") 
-            (select {:size  "1" :name "trucks" :id "trucks" :on-change [#(reset! trucks ~:trucks)]}
+            (select {:size  "1" :name "trucks" :id "trucks" :on-change #(reset! trucks (val-id :trucks))}
               (option {:value 1 :default true} "1")
               (option {:value 2} "2")
               (option {:value 3} "3")
@@ -236,8 +239,8 @@
               (option {:value 5} "5")
               (option {:value 6} "6")))
             (span {:data-intro "Stops per truck" :data-position "top"} (label "Capacity: ") 
-            (input {:type "range"  :id "capacity" :value @capacity :step "1" :min "6" :max @capacity :on-change [#(reset! capacity ~:capacity)]}) (span {:do-text [capacity]}))
+            (input {:type "range"  :id "capacity" :value @capacity :step "1" :min "6" :max @capacity :on-change #(reset! capacity (val-id :capacity))}) (span {:do-text capacity}))
             )
-          (button {:type "button" :class "button" :id "route" :do-attr [:disabled (not form-ready?)] :on-click [#(do % (route %))]} "route"))))
-     (div {:id "footer"} (a {:href "#" :class "guide" :on-click [#(do % (guide %))]} "How the heck does this thing work?") (a {:href "https://mixpanel.com/f/partner"} (img {:src "//cdn.mxpnl.com/site_media/images/partner/badge_blue.png" :alt "Mobile Analytics"})))
+          (button {:type "button" :class "button" :id "route" :do-attr (cell= {:disabled (not form-ready?)}) :on-click #(do % (route %))} "route"))))
+     (div {:id "footer"} (a {:href "#" :class "guide" :on-click #(do % (guide %))} "How the heck does this thing work?") (a {:href "https://mixpanel.com/f/partner"} (img {:src "//cdn.mxpnl.com/site_media/images/partner/badge_blue.png" :alt "Mobile Analytics"})))
        )))

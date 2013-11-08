@@ -8,7 +8,6 @@
   (:require [tspSolver.graph :refer [vertices->edges]])
   (:require [tspSolver.capacity-cluster :as cc])
   (:require [tspSolver.google :as graph])
-  (:require [tspdemo.http.rules :refer :all])
   (:require [tailrecursion.castra :refer [defn]])
   (:require [tspSolver.ant-colony :as ac]))
 
