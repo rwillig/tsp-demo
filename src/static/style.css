@@ -21,6 +21,14 @@
 .center {margin-right:auto;margin-left: auto; width:80%}
 #footer {height: 40px;width: 1255px; border: 0px solid; padding: 8px;margin-left: 30%;vertical-align: center;}
 .guide {margin-right: 12px}
+
+.route1 {color: #e02121;}
+.route2 {color: #bf21de;}
+.route3 {color: #1919cc;}
+.route4 {color: #1be0d0;}
+.route5 {color: #1bde28;}
+.route6 {color: #dec41d;}
+
 #loading {
   display:      none;
   position:     fixed;

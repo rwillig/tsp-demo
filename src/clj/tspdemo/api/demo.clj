@@ -67,10 +67,6 @@
         s        (cc/cluster {:trucks trucks :stops stops})]
     (mapv #(dissoc % :bearing :load) (:stops s))))
 
-(defn timed [f & args]
-  (let [out (atom nil)
-        sec (with-out-str (reset! out (apply f args)))]
-    {:result @out :time sec}))
 
 (defn get-routes* [ps]
   (let [start#   (. System (currentTimeMillis))  
@@ -83,10 +79,6 @@
         tstr     (str "Elapsed time: " t " seconds")]
    {:trucks (:trucks ps) :capacity (:capacity ps) :routes sols :time tstr}))
 
-(defn get-routes** [ps]
-  {:rpc [(allow)]}
-  (let [{:keys [result time]} (timed get-routes* ps)]
-    (assoc result :time time)))
 (defn get-routes [ps]
   {:rpc [(allow)]}
   (get-routes* ps))

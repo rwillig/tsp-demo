@@ -24,6 +24,7 @@
 (def max-stops 75)
 (def max-depots 10)
 (def max-lines 70)
+(def max-trucks 6)
 (def depot-image  "icons/warehouse-2.png")
 (def stop-image "icons/patisserie.png")
 (def fmt-route-image "icons/%d/number_%d.png")
@@ -51,8 +52,9 @@
 (defc selected-stops   #{})
 (defc selected-depot   nil)
 
+(defc= routes 				 (into [] (map-indexed #((partial assoc %2) :index (inc %1)) 
+                              (or (:routes solution) (mapv #(assoc {} :index %1) (range 1 (inc max-trucks)))))))
 (defc= stops           (or (:stops state) (into #{} (mapv #(assoc {} :label %) (range max-stops)))))
-;(defc= stops           (:stops state))
 (defc= depots          (or (:depots state) (into #{} (mapv #(assoc {} :label %) (range max-depots)))))
 (defc= sorted-stops    (vec (sort-by :label stops)))
 (defc= sorted-depots   (vec (sort-by :label depots)))
@@ -89,13 +91,10 @@
   (let [nodes (rest (butlast (:route route)))
         ms (map (fn [x] (first (filter #(= x (:id %)) @stop-markers))) nodes)]
     (mapv #(let [m (:marker %1) i (format fmt-route-image n %2)] (.setIcon m i)) ms (range 1 (inc (count ms))))
-    (.append (js/jQuery "#console") (str "<div style=\"color:" color  ";\">Trip Total: " (meters-to-miles (:trip route)) "</div>"))
     (draw-lines (:polylines route) color)))
 
 (defn process-routes [s]
     (clear-lines)
-    (.empty (js/jQuery "#console"))
-    (.append (js/jQuery "#console") (str "<div>" (:time s) "</div>"))
     (mapv #(process-route %1 (inc %2) %3) (:routes s) (range (count (:routes s))) colors))
 
 (cell= (process-routes solution))
@@ -155,7 +154,6 @@
   (swap! selected-stops (fn [stops] ((if (contains? stops id) disj conj) stops id))))
 
 (defn select-depot! [id]
-  ((log "[depot]") id)
   (reset! selected-depot id))
 
 (defn toggle-all [e]
@@ -198,7 +196,12 @@
      (div {:id "top-banner"} (span))
      (div {:id "map-canvas-wrapper"}
       (div {:id "map-canvas"})
-      (div {:id "console" :data-intro "Look here for important messages about the routes" :data-position "top"}))
+      (div {:id "console" :data-intro "Look here for important messages about the routes" :data-position "top"}
+        (div {:id "elapsed" :do-text (cell= (:time solution))})
+        (loop-tpl
+          :size max-trucks
+          :bindings [{:keys [index trip]} routes]
+          (div {:class (str "route" @index) :do-text (cell= (if (not (nil? trip)) (str "Trip Total: " (meters-to-miles trip))))}))))
      
      (form {:on-submit #(if @form-ready? (route %))}
        (div {:id "list-wrapper"}
@@ -230,15 +233,12 @@
           (div (span {:data-intro "Select all stops." :data-position "left"}(label "All Stops: ") (input {:type "checkbox" :class "checky" :id "select-all" :on-click #(toggle-all %)}))
             (span {:data-intro "How many trucks" :data-position "top"}(label "Trucks: ") 
             (select {:size  "1" :name "trucks" :id "trucks" :on-change #(reset! trucks (val-id :trucks))}
-              (option {:value 1 :default true} "1")
-              (option {:value 2} "2")
-              (option {:value 3} "3")
-              (option {:value 4} "4")
-              (option {:value 5} "5")
-              (option {:value 6} "6")))
+              (loop-tpl
+                :size max-trucks
+                :bindings [index (range 1 (inc max-trucks))]
+                (option {:do-value (cell= index) :do-text index})))
             (span {:data-intro "Stops per truck" :data-position "top"} (label "Capacity: ") 
             (input {:type "range"  :id "capacity" :value @capacity :step "1" :min "6" :max @capacity :on-change #(reset! capacity (val-id :capacity))}) (span {:do-text capacity}))
-            )
-          (button {:type "button" :class "button" :id "route" :do-attr (cell= {:disabled (not form-ready?)}) :on-click #(do % (route %))} "route"))))
-     (div {:id "footer"} (a {:href "#" :class "guide" :on-click #(do % (guide %))} "How the heck does this thing work?") (a {:href "https://mixpanel.com/f/partner"} (img {:src "//cdn.mxpnl.com/site_media/images/partner/badge_blue.png" :alt "Mobile Analytics"})))
-       )))
+          (button {:type "button" :class "button" :id "route" :do-attr (cell= {:disabled (not form-ready?)}) :on-click #(do % (route %))} "route"))))))
+     (div {:id "footer"} (a {:href "#" :class "guide" :on-click #(do % (guide %))} "How the heck does this thing work?") 
+       (a {:href "https://mixpanel.com/f/partner"} (img {:src "//cdn.mxpnl.com/site_media/images/partner/badge_blue.png" :alt "Mobile Analytics"}))))))
