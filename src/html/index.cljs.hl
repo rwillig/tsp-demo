@@ -29,6 +29,8 @@
 (def stop-image "icons/patisserie.png")
 (def fmt-route-image "icons/%d/number_%d.png")
 (def colors ["#e02121" "#bf21de" "#1919cc" "#1be0d0" "#1bde28" "#dec41d"])
+(def depot-markers    (into #{} (map #(cell {}) (range max-depots))))
+(def stop-markers     (into #{} (map #(cell {}) (range max-stops))))
 
 (def log #(fn [x] (.log js/console % (clj->js x))))
 (defn enable-button [id]
@@ -44,12 +46,10 @@
 (defc loading          nil)
 (defc trucks           "1")
 (defc capacity         "50")
-(defc depot-markers    '#{})
-(defc stop-markers     '#{})
 (defc route-lines      nil)
 (defc solution         nil)
 (defc solution-loading nil)
-(defc selected-stops   #{})
+(defc selected-stops   '#{})
 (defc selected-depot   nil)
 
 (defc= routes 				 (into [] (map-indexed #((partial assoc %2) :index (inc %1)) 
@@ -68,14 +68,35 @@
   (and (not (nil? depot)) (> (count stops) 5) (or (nil? xhr) (empty? xhr))))
 
 (def form-ready? (cell= (ready? selected-depot selected-stops solution-loading)))
-;(cell= ((log "[state]") stops))
 
 (defn clear-lines []
   (mapv #(.setMap (clj->js %)) (clj->js nil)) @route-lines)
 (defn decode-path [coded]
   (google.maps.geometry.encoding.decodePath coded))
+
 (defn available-lines []
   (filter #(nil? (.getMap (clj->js %))) @route-lines))
+(defn available-marker [markers]
+  (first (filter #(nil? (:id @%1)) markers)))
+
+(defn find-marker [loc markers]
+  (first (filter #(= (:id loc) (:id @%1)) markers)))
+(defn find-marker-by-id [id markers]
+  (first (filter #(= id (:id @%1)) markers)))
+
+(defn clear-markers [markers]
+  (mapv #(.setMap (:marker @%1) (clj->js nil)) markers)
+  (mapv #(reset! %1 (dissoc @%1 :id)) markers))
+
+(defn load-markers [locs markers]
+  (clear-markers markers)
+      (mapv (fn [x] (let  [m (or (find-marker x markers)  (available-marker markers))]
+       (do
+         (.setPosition (clj->js (:marker @m)) (google.maps.LatLng. (clj->js (:lat x)) (clj->js (:lng x))))
+         (.setTitle (clj->js (:marker @m)) (clj->js (:label x)))) 
+       (reset! m (assoc {} :id (:id x) :marker (:marker @m))))) locs))
+
+
 (defn draw-line [path line color]
   (let [l (clj->js line)
         p (clj->js path)
@@ -89,7 +110,7 @@
 
 (defn process-route [route n color]
   (let [nodes (rest (butlast (:route route)))
-        ms (map (fn [x] (first (filter #(= x (:id %)) @stop-markers))) nodes)]
+        ms (map (fn [x] @(first (filter #(= x (:id @%)) stop-markers))) nodes)]
     (mapv #(let [m (:marker %1) i (format fmt-route-image n %2)] (.setIcon m i)) ms (range 1 (inc (count ms))))
     (draw-lines (:polylines route) color)))
 
@@ -98,53 +119,24 @@
     (mapv #(process-route %1 (inc %2) %3) (:routes s) (range (count (:routes s))) colors))
 
 (cell= (process-routes solution))
-
-(defn add-depot-marker! [marker id]
-  (swap! depot-markers conj {:id id :marker marker}))
-
-(defn add-stop-marker! [el]
-  (let [m  (first (set/select #(= el (:id %)) @stop-markers))
-        e  (first (filter #(= el (:id %)) @stops))]
-    (if (nil? m)
-      (let [markerOptions (clj->js {:position (google.maps.LatLng. (:lat e) (:lng e))
-                                    :title (:label e)
-                                    :icon stop-image
-                                    :map *map*})
-            marker (google.maps.Marker. markerOptions)]
-        (swap! stop-markers conj {:id (:id e) :marker marker}))
-      (do (.setIcon (:marker m) stop-image) (.setMap (:marker m) *map*)))))
-
-(defn remove-stop-marker! [el]
-  (let [m (first (set/select #(= el (:id %)) @stop-markers))]
-    (if (not (nil? m))
-      (.setMap (:marker m) (clj->js nil)))))
+(cell= (if-not (nil? (:id (first stops))) (load-markers stops stop-markers)))
+(cell= (if-not (nil? (:id (first depots))) (load-markers depots depot-markers)))
 
 (defn watch-depot 
   [k r o n]
-  (let [old-marker   (first (set/select #(= o (:id %)) @depot-markers))
-        new-marker   (first (set/select #(= n (:id %)) @depot-markers))
-        old-depot    (first (filter #(= o (:id %)) @depots))
-        new-depot    (first (filter #(= n (:id %)) @depots))]
-    (if (not (empty? old-marker)) (.setMap (:marker old-marker) (clj->js nil)))
-    (if (empty? new-marker)
-      (let [
-            markerOptions (clj->js {:position (google.maps.LatLng. (:lat new-depot) (:lng new-depot))
-                                    :title (:label new-depot)
-                                    :icon depot-image
-                                    :map *map*})
-            marker (google.maps.Marker. markerOptions)]
-        (add-depot-marker! marker (:id new-depot)))
-      (.setMap (:marker new-marker)(clj->js *map*)))))
+  (let [old   @(first (set/select #(= o (:id @%)) depot-markers))
+        new   @(first (set/select #(= n (:id @%)) depot-markers))]
+    (.setMap (:marker old) (clj->js nil))
+    (.setMap (:marker new)(clj->js *map*))))
 
 (defn watch-stops 
   [k r o n]
   (let [op (if (< (count o) (count n)) "added" "deleted")
         els (case op
              "added"   (difference (set n) (set o))
-             "deleted" (difference (set o) (set n)))]
-    (if (= op "added") 
-      (mapv #(add-stop-marker! %) els) 
-      (mapv #(remove-stop-marker! %) els))))
+             "deleted" (difference (set o) (set n)))
+        map (if (= op "added") *map* nil)]
+      (mapv #(let [m @(find-marker-by-id %1 stop-markers)] (.setMap (:marker m) (clj->js map))) els))) 
 
 
 (add-watch selected-stops :stops watch-stops)
@@ -173,15 +165,20 @@
 (defn initialize []
   (let [mapOptions (clj->js{"center" (google.maps.LatLng. 25.763 -80.331)
                     "zoom" 10
-                    "mapTypeId"  google.maps.MapTypeId.ROADMAP})]
+                    "mapTypeId"  google.maps.MapTypeId.ROADMAP})
+        stopOptions (clj->js {:icon stop-image})
+        depotOptions (clj->js {:icon depot-image})]
     (do 
+      (set! (.-visualRefresh google.maps) (clj->js true))
       (set! *map* (google.maps.Map. (.getElementById js/document "map-canvas") mapOptions))
       (.getScript js/jQuery "chardinjs.min.js")
-      (reset! route-lines (mapv #(google.maps.Polyline.) (range max-lines)))
+      (reset! route-lines (mapv #(google.maps.Polyline.) (range max-lines)))      
+      (mapv #(reset! %1 (assoc {} :marker (google.maps.Marker. stopOptions))) stop-markers)
+      (mapv #(reset! %1 (assoc {} :marker (google.maps.Marker. depotOptions))) depot-markers)
     	(ept-state)
     	(.track js/mixpanel (clj->js "View Map")))))
-(add-initfn! initialize)
 
+(add-initfn! initialize)
 (defn guide [e]
   (.chardinJs (js/jQuery "body") "toggle"))
  
