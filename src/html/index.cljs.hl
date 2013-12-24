@@ -69,6 +69,13 @@
 									in savings per vehicle per year. (20 miles x 260 days x $1.00 avg cost)")
 	           (p 	"Now, to make the problem a little harder, let's say you have more stuff to deliver than can fit into one truck. 
 									Fortunately you have several trucks. Now you have to solve the capacitated vehicle routing problem. This means that before 
-									you can figure out the best route for each truck, you have to first figure out which stuff to put in each truck. "))))	
+									you can figure out the best route for each truck, you have to first figure out which stuff to put in each truck. ")
+             (p   "The demo on the next page will allow you to experiment with some of these different scenarios. You'll see a list of 50 
+									bakeries which represent the possible deliveries. Below that is a list of 4 possible warehouses. At a minimum, you must 
+									choose at least 6 stops and depot from which to deliver. In order to test the capacitation component, you can select 
+									multiple trucks from the truck drop-down. The capacity slider is to set the capacity of each truck.")
+             (p   "So, for example, a good scenario for testing a 4 truck example would be select all 50 stops (a shortcut checkbox on 
+									the bottom will select all stops) and select 4 trucks. Then set the capacity slider to 13. This will fill each of the 
+									first 3 trucks with 13 of the stops (each stop has a load of 1) and the last truck will take 11 stops."))))	
       (hr)
       (copyright-footer))))
