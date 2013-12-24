@@ -1,241 +1,74 @@
-(page index.html
+(page "index.html"
   (:refer-clojure :exclude [nth meta])
   (:require
-    [tailrecursion.hoplon.util          :refer [nth name pluralize route-cell]]
-    [tailrecursion.hoplon.storage-atom  :refer [local-storage]])
-  (:require
-    	[goog.string :as gstring]
-      [goog.events :as events]
-      [clojure.set :as set :refer [difference]]
-      [tailrecursion.castra :refer [mkremote]]))
+    [clojure.string             :as string]
+    [bootstrap.core             :as core]
+    [bootstrap.grid             :as grid]
+    [bootstrap.meta             :as meta]
+    [bootstrap.list             :as list]
+    [bootstrap.page             :as page]
+    [bootstrap.glyph            :as glyph]
+    [bootstrap.panel            :as panel]
+    [bootstrap.button           :as button]
+    [bootstrap.navbar           :as navbar]
+    [tailrecursion.hoplon.util  :as hutil]))
 
-(comment (defn format
-  "Formats a string using goog.string.format."
-  [fmt & args]
-  (apply gstring/format fmt args))
+(def route (hutil/route-cell 10 "#/home/"))
+(def demo-url "demo.html")
+(def-values
+  [page-setup nav-bar
+   content-home
+   content-demo]
+  (page/navbar-fixed-top
+    route
+    "TSP Demo"
+    "TSP Demo"
+    [(a :href "#/home/"  "Home") (div)]
+    [(a :href demo-url "Demo") (core/container)]))
 
-(defn printf
-  "Prints formatted output, as per format"
-  [fmt & args]
-  (print (apply format fmt args))))
-
-(def *map* nil)
-(def meters-per-mile 1609.34)
-(def max-stops 75)
-(def max-depots 10)
-(def max-lines 70)
-(def max-trucks 6)
-(def depot-image  "icons/warehouse-2.png")
-(def stop-image "icons/patisserie.png")
-(def fmt-route-image "icons/%d/number_%d.png")
-(def colors ["#e02121" "#bf21de" "#1919cc" "#1be0d0" "#1bde28" "#dec41d"])
-(def depot-markers    (into #{} (map #(cell {}) (range max-depots))))
-(def stop-markers     (into #{} (map #(cell {}) (range max-stops))))
-
-(def log #(fn [x] (.log js/console % (clj->js x))))
-(defn enable-button [id]
-  (.removeAttr (js/jQuery (clj->js (str "#" id))) "disabled"))
-(defn disable-button [id]
-  (.attr (js/jQuery (clj->js (str "#" id))) "disabled" "true"))
-(defn meters-to-miles [meters]
-  (format "%.2f miles" (/ (js/parseInt meters) meters-per-mile)))
-
-;;; cells
-(defc state            nil)
-(defc error            nil)
-(defc loading          nil)
-(defc trucks           "1")
-(defc capacity         "50")
-(defc route-lines      nil)
-(defc solution         nil)
-(defc solution-loading nil)
-(defc selected-stops   '#{})
-(defc selected-depot   nil)
-
-(defc= routes 				 (into [] (map-indexed #((partial assoc %2) :index (inc %1)) 
-                              (or (:routes solution) (mapv #(assoc {} :index %1) (range 1 (inc max-trucks)))))))
-(defc= stops           (or (:stops state) (into #{} (mapv #(assoc {} :label %) (range max-stops)))))
-(defc= depots          (or (:depots state) (into #{} (mapv #(assoc {} :label %) (range max-depots)))))
-(defc= sorted-stops    (vec (sort-by :label stops)))
-(defc= sorted-depots   (vec (sort-by :label depots)))
-
-(def ept-state   (mkremote 'tspdemo.api.demo/get-state state error loading))
-(def ept-route   (mkremote 'tspdemo.api.demo/get-routes solution error solution-loading))
-
-(cell= (.log js/console (:trace error)))
-
-(defn ready? [depot stops xhr]
-  (and (not (nil? depot)) (> (count stops) 5) (or (nil? xhr) (empty? xhr))))
-
-(def form-ready? (cell= (ready? selected-depot selected-stops solution-loading)))
-
-(defn clear-lines []
-  (mapv #(.setMap (clj->js %)) (clj->js nil)) @route-lines)
-(defn decode-path [coded]
-  (google.maps.geometry.encoding.decodePath coded))
-
-(defn available-lines []
-  (filter #(nil? (.getMap (clj->js %))) @route-lines))
-(defn available-marker [markers]
-  (first (filter #(nil? (:id @%1)) markers)))
-
-(defn find-marker [loc markers]
-  (first (filter #(= (:id loc) (:id @%1)) markers)))
-(defn find-marker-by-id [id markers]
-  (first (filter #(= id (:id @%1)) markers)))
-
-(defn clear-markers [markers]
-  (mapv #(.setMap (:marker @%1) (clj->js nil)) markers)
-  (mapv #(reset! %1 (dissoc @%1 :id)) markers))
-
-(defn load-markers [locs markers]
-  (clear-markers markers)
-      (mapv (fn [x] (let  [m (or (find-marker x markers)  (available-marker markers))]
-       (do
-         (.setPosition (clj->js (:marker @m)) (google.maps.LatLng. (clj->js (:lat x)) (clj->js (:lng x))))
-         (.setTitle (clj->js (:marker @m)) (clj->js (:label x)))) 
-       (reset! m (assoc {} :id (:id x) :marker (:marker @m))))) locs))
-
-
-(defn draw-line [path line color]
-  (let [l (clj->js line)
-        p (clj->js path)
-        m (clj->js *map*)]
-    (.setPath l p)
-    (.setOptions l (clj->js {:strokeColor color}))
-    (.setMap l m)))
-
-(defn draw-lines [lines color]
-  (mapv #(draw-line (decode-path %1) %2 color) lines (available-lines)))
-
-(defn process-route [route n color]
-  (let [nodes (rest (butlast (:route route)))
-        ms (map (fn [x] @(first (filter #(= x (:id @%)) stop-markers))) nodes)]
-    (mapv #(let [m (:marker %1) i (format fmt-route-image n %2)] (.setIcon m i)) ms (range 1 (inc (count ms))))
-    (draw-lines (:polylines route) color)))
-
-(defn process-routes [s]
-    (clear-lines)
-    (mapv #(process-route %1 (inc %2) %3) (:routes s) (range (count (:routes s))) colors))
-
-(cell= (process-routes solution))
-(cell= (if-not (nil? (:id (first stops))) (load-markers stops stop-markers)))
-(cell= (if-not (nil? (:id (first depots))) (load-markers depots depot-markers)))
-
-(defn watch-depot 
-  [k r o n]
-  (let [old   @(first (set/select #(= o (:id @%)) depot-markers))
-        new   @(first (set/select #(= n (:id @%)) depot-markers))]
-    (.setMap (:marker old) (clj->js nil))
-    (.setMap (:marker new)(clj->js *map*))))
-
-(defn watch-stops 
-  [k r o n]
-  (let [op (if (< (count o) (count n)) "added" "deleted")
-        els (case op
-             "added"   (difference (set n) (set o))
-             "deleted" (difference (set o) (set n)))
-        map (if (= op "added") *map* nil)]
-      (mapv #(let [m @(find-marker-by-id %1 stop-markers)] (.setMap (:marker m) (clj->js map))) els))) 
-
-
-(add-watch selected-stops :stops watch-stops)
-(add-watch selected-depot :depot watch-depot)
-        
-(defn select-stop! [id]
-  (swap! selected-stops (fn [stops] ((if (contains? stops id) disj conj) stops id))))
-
-(defn select-depot! [id]
-  (reset! selected-depot id))
-
-(defn toggle-all [e]
-  (let [all-stops (into #{} (map #(:id %) @stops))]
-  (if (= (.attr (js/jQuery "#select-all") "checked") "checked")
-    (reset! selected-stops all-stops)
-    (reset! selected-stops #{}))))
-
-(defn route [e]
-  (let [s     (filter #(contains? @selected-stops (:id %)) @stops)
-        d     (first (filter #(= @selected-depot (:id %)) @depots))
-        ps    {:stops s :depot d :trucks @trucks :capacity @capacity}]    
-    (do
-      (.track js/mixpanel (clj->js "Do Route") (clj->js {:stops (count s) :trucks (js/parseInt @trucks) :capacity (js/parseInt @capacity)}))
-      (ept-route ps))))
-
-(defn initialize []
-  (let [mapOptions (clj->js{"center" (google.maps.LatLng. 25.763 -80.331)
-                    "zoom" 10
-                    "mapTypeId"  google.maps.MapTypeId.ROADMAP})
-        stopOptions (clj->js {:icon stop-image})
-        depotOptions (clj->js {:icon depot-image})]
-    (do 
-      (set! (.-visualRefresh google.maps) (clj->js true))
-      (set! *map* (google.maps.Map. (.getElementById js/document "map-canvas") mapOptions))
-      (.getScript js/jQuery "chardinjs.min.js")
-      (reset! route-lines (mapv #(google.maps.Polyline.) (range max-lines)))      
-      (mapv #(reset! %1 (assoc {} :marker (google.maps.Marker. stopOptions))) stop-markers)
-      (mapv #(reset! %1 (assoc {} :marker (google.maps.Marker. depotOptions))) depot-markers)
-    	(ept-state)
-    	(.track js/mixpanel (clj->js "View Map")))))
-
-(add-initfn! initialize)
-(defn guide [e]
-  (.chardinJs (js/jQuery "body") "toggle"))
- 
-(html
-  (head (title "TSP Demo")
-        (link {:rel "stylesheet" :type "text/css" :href "style.css"})
-        (link {:rel "stylesheet" :type "text/css" :href "chardinjs.css"})
-	    	(script {:type "text/javascript" :src "https://maps.googleapis.com/maps/api/js?libraries=geometry&sensor=false"})
-	      (script {:type "text/javascript" :src "mixpanel.js"}))
-  (body 
-    (div {:id "main-container"}
-     (div {:id "top-banner"} (span))
-     (div {:id "map-canvas-wrapper"}
-      (div {:id "map-canvas"})
-      (div {:id "console" :data-intro "Look here for important messages about the routes" :data-position "top"}
-        (div {:id "elapsed" :do-text (cell= (:time solution))})
-        (loop-tpl
-          :size max-trucks
-          :bindings [{:keys [index trip]} routes]
-          (div {:class (str "route" @index) :do-text (cell= (if (not (nil? trip)) (str "Trip Total: " (meters-to-miles trip))))}))))
-     
-     (form {:on-submit #(if @form-ready? (route %))}
-       (div {:id "list-wrapper"}
-         (fieldset {:class "stops-list" :data-intro "The list of stops to choose. Pick at least 6" :data-position "left"}
-          (legend "Stops")(div {:class "stops-inner"} 
-		      (loop-tpl
-          	:size max-stops
-            :bindings [{:keys [id label address]} stops]
-	          (div
-	            {:class "stop-container" :do-class (cell= {:hidden (not id)})}
-	            (input {:class "checky" :type "checkbox" :do-value (cell= (contains? selected-stops id)) :on-click #(select-stop! @id)})
-	            (div {:class "address-container"}
-                (div {:class "label" :do-text label})
-		            (div {:class "address" :do-text address})))
-		        )))
-        (fieldset {:class "depot-list" :data-intro "The starting point for all routes. Pick 1 only." :data-position "left"}
-         (legend "Depots")(div {:class "depots-inner"}
-		      (loop-tpl
-          	:size max-depots
-            :bindings [{:keys [id label address]} depots]
-	          (div
-	            {:class "depot-container" :do-class (cell= {:hidden (not id)})}
-	            (input {:class "checky" :type "radio" :name "depot" :do-value (cell= (= selected-depot id)) :on-click #(select-depot! @id)})
-            (div {:class "address-container"}
-	            (div {:class "label" :do-text label})
-	            (div {:class "address" :do-text address}))))
-		        ))
-        (div {:class "buttons"}
-          (div (span {:data-intro "Select all stops." :data-position "left"}(label "All Stops: ") (input {:type "checkbox" :class "checky" :id "select-all" :on-click #(toggle-all %)}))
-            (span {:data-intro "How many trucks" :data-position "top"}(label "Trucks: ") 
-            (select {:size  "1" :name "trucks" :id "trucks" :on-change #(reset! trucks (val-id :trucks))}
-              (loop-tpl
-                :size max-trucks
-                :bindings [index (range 1 (inc max-trucks))]
-                (option {:do-value (cell= index) :do-text index})))
-            (span {:data-intro "Stops per truck" :data-position "top"} (label "Capacity: ") 
-            (input {:type "range"  :id "capacity" :value @capacity :step "1" :min "6" :max @capacity :on-change #(reset! capacity (val-id :capacity))}) (span {:do-text capacity}))
-          (button {:type "button" :class "button" :id "route" :do-attr (cell= {:disabled (not form-ready?)}) :on-click #(do % (route %))} "route"))))))
-     (div {:id "footer"} (a {:href "#" :class "guide" :on-click #(do % (guide %))} "How the heck does this thing work?") 
-       (a {:href "https://mixpanel.com/f/partner"} (img {:src "//cdn.mxpnl.com/site_media/images/partner/badge_blue.png" :alt "Mobile Analytics"}))))))
+(defn copyright-footer []
+  (footer :style "padding:30px 0px;"
+    (div :style "text-align:center;"
+      "Copyright 2013 © Ray Willig. All rights reserved.")))
+(html :lang "en"
+  (head
+    (meta :charset "utf-8")
+    (meta :name "viewport"    :content "width=device-width, initial-scale=1.0")
+    (meta :name "keywords"    :content "clojure, clojurescript, castra, hoplon, vehicle routing problem")
+    (meta :name "description" :content "")
+    (link :href "css/bootstrap.min.css"     :rel "stylesheet" :media "screen")
+    (link :href "css/starter-template.css"  :rel "stylesheet" :media "screen")
+    (script {:type "text/javascript" :src "mixpanel.js"})
+    (title "TSP Demo - Demonstration of the Capacitated Vehicle Routing Problem"))
+  (body
+    (nav-bar)
+    (a :class "topfix" :do-scroll-to (cell= route))
+    (noscript
+      (div :class "nojs-error"
+        "This page uses JavaScript but it looks like you have it turned off."))
+    (content-home
+      (core/jumbotron
+        (core/container :class "map"
+          (core/container
+            (h2 "Capacitated Vehicle Routing Demo")
+            (p "using the full hoplon stack"))))
+      (core/container
+        (grid/row
+	        (grid/col12 
+            (h2 "Welcome")
+	          (p "Thank you for visiting this demo. It's purpose is two-fold. One is to demonstrate the software itself – namely 
+								an application for solving the capacitated vehicle routing problem. The other reason is to demonstrate an amazing 
+								new and, I daresay, revolutionary framework for developing web applications – Hoplon.")))
+        (grid/row
+           (grid/col12
+             (h2 "Capacitated Vehicle Routing")
+	           (p 	"Suppose you're a distributor of, say, bakery supplies and you have 50 deliveries to make today. You'd like to figure 
+									out the best route that minimizes the distance that your truck has to drive. Vehicle wear and tear costs per mile can 
+									range from about $0.60 to $1.40 depending on the size of the vehicle. Now, the difference between a good route and a 
+									not so good route could be more than double, but even driving just 20 miles per day fewer could result in over $5000 
+									in savings per vehicle per year. (20 miles x 260 days x $1.00 avg cost)")
+	           (p 	"Now, to make the problem a little harder, let's say you have more stuff to deliver than can fit into one truck. 
+									Fortunately you have several trucks. Now you have to solve the capacitated vehicle routing problem. This means that before 
+									you can figure out the best route for each truck, you have to first figure out which stuff to put in each truck. "))))	
+      (hr)
+      (copyright-footer))))
