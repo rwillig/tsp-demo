@@ -63,7 +63,7 @@
 (def ept-route   (mkremote 'tspdemo.api.demo/get-routes solution error solution-loading))
 
 (cell= (.log js/console (:trace error)))
-
+(cell= ((log "[state]") state))
 (defn ready? [depot stops xhr]
   (and (not (nil? depot)) (> (count stops) 5) (or (nil? xhr) (empty? xhr))))
 

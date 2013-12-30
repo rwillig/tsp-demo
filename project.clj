@@ -10,6 +10,7 @@
   :dependencies [[org.clojure/clojure     "1.5.1"]
                  [tsp "1.1.3-SNAPSHOT"]
                  [ring-middleware-index-file "1.0.5-SNAPSHOT"]
+                 [markdown-clj              "0.9.38"]
                  [ring "1.2.0"]
                  [tailrecursion/hoplon "4.0.7"]]
   :source-paths ["src/clj"]
