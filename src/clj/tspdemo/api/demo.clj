@@ -28,6 +28,13 @@
         mdb    (mg/use-db! c/db)]
     (mapv #(dissoc % :_id) (mc/find-maps c/address-coll {:type "stop"} fields))))
 
+(defn get-mqo-recs [n]
+  {:rpc [(allow)]}
+  (let [mongo (mongo-connection)
+        mdb   (mg/use-db! "mqotest")
+        recs  (map #(assoc %1 :id (str (:_id %1))) (take n (reverse (sort-by :distance (mc/find-maps "distances")))))]
+    {:records (map #(dissoc %1 :_id) recs)}))
+
 (defn get-state [] 
   {:rpc [(allow)]}
   {:stops (get-stops) :depots (get-depots)})

@@ -7,7 +7,7 @@
     	[goog.string :as gstring]
       [goog.events :as events]
       [clojure.set :as set :refer [difference]]
-      [tailrecursion.castra :refer [mkremote]]))
+      [tailrecursion.castra :refer [mkremote *url*]]))
 
 (comment (defn format
   "Formats a string using goog.string.format."
@@ -18,7 +18,7 @@
   "Prints formatted output, as per format"
   [fmt & args]
   (print (apply format fmt args))))
-
+;(def *url* ".")
 (def *map* nil)
 (def meters-per-mile 1609.34)
 (def max-stops 75)
@@ -59,8 +59,10 @@
 (defc= sorted-stops    (vec (sort-by :label stops)))
 (defc= sorted-depots   (vec (sort-by :label depots)))
 
-(def ept-state   (mkremote 'tspdemo.api.demo/get-state state error loading))
-(def ept-route   (mkremote 'tspdemo.api.demo/get-routes solution error solution-loading))
+(binding [*url* "."] 
+  (do 
+   (def ept-state   (mkremote 'tspdemo.api.demo/get-state state error loading))
+   (def ept-route   (mkremote 'tspdemo.api.demo/get-routes solution error solution-loading))))
 
 (cell= (.log js/console (:trace error)))
 (cell= ((log "[state]") state))
