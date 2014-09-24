@@ -1,0 +1,176 @@
+<script type="text/hoplon">
+(page "index.html"
+  (:refer-hoplon :exclude  [center])
+  (:require
+       [hoplon.google.jsapi.maps :as m :refer  [google-map]]
+       [hoplon.google.jsapi.loader     :refer  [api-key]]
+       [hoplon.twitter.bootstrap :as b :refer  [container tab tabs]]))
+
+(def rt-home "#/home")
+(def rt-demo "#/demo")
+(def route (route-cell rt-home))
+
+</script>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="../../favicon.ico">
+
+    <title>TSP Demo - Demonstration of the Capacitated Vehicle Routing Problem</title> 
+
+    <!-- Bootstrap core CSS -->
+
+    <!-- Custom styles for this template -->
+    <!--link href="css/dashboard.css" rel="stylesheet"-->
+    <link href="css/starter-template.css" rel="stylesheet">
+
+  </head>
+  <body>
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#">TSP Demo</a>
+        </div>
+        <div class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a shape="rect" href="#/home">Home</a></li>
+            <li><a shape="rect" href="#/demo">Demo</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div do-toggle='{{ (cell= (= route rt-home)) }}'>
+      <div style="display: block; ">
+        <div class="jumbotron" style="background-color:#ffcc33">
+          <div class="container map">
+            <div class="container">
+              <h2>Capacitated Vehicle Routing Demo</h2>
+              <p class="hyphenate Hyphenator166hide" style="text-align: justify; ">using the full hoplon stack</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="row">
+          <div class="col-md-12">
+            <h2>Welcome</h2>
+            <p>
+								The application on this site has two purposes. One of these is to demonstrate the software itself, namely 
+								an application for solving the <a href="http://en.wikipedia.org/wiki/Vehicle_routing_problem"> capacitated vehicle routing problemi</a> . 
+        				The other purpose is to demonstrate an amazing, new and revolutionary framework for developing web applications: <a href="http://hoplon.io">Hoplon</a> .
+            </p>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <h2>Capacitated Vehicle Routing</h2>
+            <p>
+                Suppose you're a distributor of, say, bakery supplies and you have 50 deliveries to make today. You'd like to figure 
+                out the best route that minimizes the distance that your truck has to drive. Vehicle wear and tear costs per mile can 
+                range from about $0.60 to $1.40 depending on the size of the vehicle. Now, the difference between a good route and a 
+                not so good route could be more than double, but even driving just 20 miles per day fewer could result in over $5000 
+                in savings per vehicle per year. (20 miles x 260 days x $1.00 avg cost)
+            </p>
+            <p>
+                Now, to make the problem a little harder, let's say you have more stuff to deliver than can fit into one truck. 
+                Fortunately you have several trucks. Now you have to solve the capacitated vehicle routing problem. This means that before 
+                you can figure out the best route for each truck, you have to first figure out which stuff to put in each truck.
+            </p>
+            <p>
+                The demo on the next page will allow you to experiment with some of these different scenarios. You'll see a list of 50 
+                bakeries which represent the possible deliveries. Below that is a list of 4 possible warehouses. At a minimum, you must 
+                choose at least 6 stops and depot from which to deliver. In order to test the capacitation component, you can select 
+                multiple trucks from the truck drop-down. The capacity slider is to set the capacity of each truck.
+            </p>
+            <p>
+               So, for example, a good scenario for testing a 4 truck example would be select all 50 stops (a shortcut checkbox on 
+               the bottom will select all stops) and select 4 trucks. Then set the capacity slider to 13. This will fill each of the 
+               first 3 trucks with 13 of the stops (each stop has a load of 1) and the last truck will take 11 stops.
+            </p>
+               <h4>For more information about this software contact:</h4>
+               <strong><a href="mailto:ray.willig@gmail.com">Ray Willig</a></strong> 
+            </p> 
+          </div>
+          <div class="col-md-6">
+            <h2>Hoplon</h2>
+            <p>
+              Hoplon is a framework for developing web applications which promises *a simpler way to program the web*. There are 
+              several profound technical reasons for this and a review along with elaboration of the technical benefits can be
+              found <a href="http://http://hoplon.io/#/benefits/">here</a> 
+            </p>
+            <p>
+              There are some very clear wins on the business side that flow from these benefits: a spreadsheet-like state model for 
+              web apps easily understood by non-technical subject matter experts, use of datomic, an immutable database of facts 
+              providing full data provenance, and a predictable development timeline. 
+            </p>
+            <p>
+              The spreadsheet-like model (sometimes called <a href="http://en.wikipedia.org/wiki/Dataflow_programming">dataflow programmingi</a>) makes things 
+              much simpler from the programming side of things but it has added benefit 
+              for business stakeholders. It's an entrenched metaphor that nearl everyone in business can not only understand but has probably used
+              extensively throughout their career. So it doesn't require non-technical subject matter experts (SMEs) to learn a new vocabulary
+              in order to participate fully in the design/specification process. This leads to fewer instances of mis-communication between product
+              and engineering. 
+            </p>
+            <p>
+              This leads to fewer bugs in two different ways. There are fewer logic bugs introduced by programmers because the state model
+              of the web app is so simple and fewer design bugs that introduced by poor communication. Inevitably, this virtuous cycle produces software 
+              that is easier to maintain, but more importantly, software that's easier to modify as new features are required or changes to the business model 
+              requires pivots.
+            </p>
+            <p>
+              Applications built using the hoplon framework are designed to leverage an immutable database of facts. This can be thought of as a version control
+              system for data like, for example, <a href="http://en.wikipedia.org/wiki/Git_(software)">git</a>. This makes it simple to ask all sorts of questions of the form
+              "what was the state the system at time x?" This could be something like "how many active clients did we have at the end of the 3rd quarter last year" 
+              These are, of course, the simplest examples and could be handled simply with other schemes, but perhaps only if you thought about them ahead of time. 
+              This becomes much harder when changing business requirements require asking those questions on an ad hoc basis well after the fact.
+            </p>
+              <h4>For more information about hoplon contact:</h4>
+            </p>
+            <p>
+              <strong><a href="mailto:micha.niskin@gmail.com">Micha Niskin</a></strong> 
+            </p>
+            <p>
+              <strong><a href="mailto:alan@dipert.org">Alan Dipert</a></strong>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div do-toggle='{{ (cell= (= route rt-demo)) }}'>
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-sm-3 col-md-2 sidebar">
+            <ul class="nav nav-sidebar">
+              <li class="active"><a href="#">Overview</a></li>
+              <li><a href="#">Reports</a></li>
+              <li><a href="#">Analytics</a></li>
+              <li><a href="#">Export</a></li>
+            </ul>
+            <ul class="nav nav-sidebar">
+              <li><a href="">Nav item</a></li>
+              <li><a href="">Nav item again</a></li>
+              <li><a href="">One more nav</a></li>
+              <li><a href="">Another nav item</a></li>
+              <li><a href="">More navigation</a></li>
+            </ul>
+            <ul class="nav nav-sidebar">
+              <li><a href="">Nav item again</a></li>
+              <li><a href="">One more nav</a></li>
+              <li><a href="">Another nav item</a></li>
+            </ul>
+          </div>
+          <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer style="padding:30px 0px;">
+      <div style="text-align:center;">Copyright 2014 © Ray Willig. All rights reserved.</div>
+    </footer>
+  </body>
+</html>
