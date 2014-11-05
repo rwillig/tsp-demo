@@ -4,7 +4,11 @@
   :license      {:name  "Eclipse Public License"
                  :url   "http://www.eclipse.org/legal/epl-v10.html"}
   :min-lein-version "2.0.0"
-  :plugins  [[lein-ring "0.8.13"]]
+  :plugins  [[lein-ring "0.8.13"]
+             [s3-wagon-private "1.1.2"]]
+  :repositories  {"private"  {:url "s3p://rsw-hdfs/releases/" 
+                                                              :passphrase :env 
+                                                              :username :env}}
   :uberjar-name "tsp-demo-standalone.jar"
   :dependencies [  [org.clojure/clojure                   "1.6.0"]
                    [tailrecursion/hoplon                  "5.10.24"]
