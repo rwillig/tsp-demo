@@ -71,7 +71,7 @@
 ;(cell= ((log "[rt-fn]")  (clj->js rt-fn)))
 (cell= ((log "[ready]")  (clj->js ready?)))
 ;(cell= ((log "[markers]")  (clj->js markers)))
-;(cell= ((log "[error]") (:trace error)))
+(cell= ((log "[error]") (:trace error)))
 
 (add-initfn! (fn [] (do (ept-state))))
 

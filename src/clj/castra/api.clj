@@ -13,21 +13,26 @@
   (:require [tspSolver.ant-colony :as ac]))
 
 (def fields ["id" "label" "address" "lat" "lng"])
-;(def server (atom (start-server :port 7888)))
-(def cache (ca/get-cache {:type :mongo :uri c/mongo-uri :db c/db :edge c/edge-coll :address c/address-coll}))
+
+(def cache  (delay (ca/get-cache {:type :mongo :uri c/mongo-uri :db c/db :edge c/edge-coll :address c/address-coll})))
+(defn init []
+  (start-server :port 7888))
+
+(defn destroy []
+  (stop-server))
 
 (defn get-depots []
   (do
-    (when (m/cache-ready? cache) (mapv #(dissoc % :_id) (mc/find-maps (:db @(:conn cache)) c/address-coll {:type "depot"} fields)))))
+    (when (m/cache-ready? @cache) (mapv #(dissoc % :_id) (mc/find-maps (:db @(:conn @cache)) c/address-coll {:type "depot"} fields)))))
 
 (defn get-stops []
   (do 
-    (when (m/cache-ready? cache) (mapv #(dissoc % :_id) (mc/find-maps (:db @(:conn cache)) c/address-coll {:type "stop"} fields)))))
+    (when (m/cache-ready? @cache) (mapv #(dissoc % :_id) (mc/find-maps (:db @(:conn @cache)) c/address-coll {:type "stop"} fields)))))
 
  
 (defn get-polyline [from to]
   (let [id     (shahash from to)]
-    (when (m/cache-ready? cache) (:points (dissoc (mc/find-one-as-map (:db @(:conn cache)) c/edge-coll {:id id} ["points"]) :_id)))))
+    (when (m/cache-ready? @cache) (:points (dissoc (mc/find-one-as-map (:db @(:conn @cache)) c/edge-coll {:id id} ["points"]) :_id)))))
 
 (defn tour-stops [stops vertices]
   (mapv #(mapv (fn[x] (nth stops x)) %) (vertices->edges vertices)))
