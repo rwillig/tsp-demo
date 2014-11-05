@@ -1,0 +1,109 @@
+(ns tspdemo.app
+  (:refer-hoplon :exclude  [center])
+  (:require-macros
+        [tailrecursion.javelin            :refer  [defc defc= cell=]])
+  (:require
+        [hoplon.google.jsapi.maps         :as m :refer  [decode-path]]
+        [hoplon.google.jsapi.loader       :as l :refer  [api-key]]
+        [goog.string                      :as g]
+        [goog.string.format               :as gf]
+        [tailrecursion.javelin            :as j :refer  [cell]]
+        [tailrecursion.hoplon             :as w :refer  [add-initfn!]]
+        [clojure.set                      :as s :refer  [difference]]
+        [tailrecursion.castra             :as c :refer  [mkremote *url*]]))
+
+(def max-trucks 6)
+(def meters-per-mile 1609.34)
+(def depot-image  "icons/warehouse-2.png")
+(def stop-image "icons/patisserie.png")
+(def fmt-route-image "icons/%d/number_%d.png")
+(def colors ["#e02121" "#bf21de" "#1919cc" "#1be0d0" "#1bde28" "#dec41d"])
+(reset! api-key "AIzaSyDGqkxjAuq4IeG7rUt6C33Jsiv41bkQfBk")  
+(def log #(fn [x] (.log js/console % (clj->js x))))
+
+(defc state            nil)
+(defc error            nil)
+(defc loading          nil)
+(defc trucks           "1")
+(defc capacity         "50")
+(defc min-stops        6)
+(defc route-lines      nil)
+(defc solution         nil)
+(defc solution-loading nil)
+(defc selected-stops   [])
+(defc selected-depot   nil)
+(defc center           {:lat 25.763 :lon -80.331 })
+
+(defelem info  [{:keys  [title body]} _]
+   (div 
+     (strong title)
+     (p body)))
+
+(defc= stops            (mapv #(assoc % :opts {:icon stop-image} :lon (:lng %) :info (info :title (:label %) :body (:address %))) (:stops state)))
+(defc= depots           (mapv #(assoc % :opts {:icon depot-image} :lon (:lng %) :info (info :title (:label %) :body (:address %))) (:depots state)))
+(defc= markers          (let [ss   (into #{} selected-stops)
+                             ms   (if solution
+                                    (do
+                                      (flatten (map (fn [route i color] 
+                                              (let [nodes (into [] (rest (butlast (:route route))))]
+                                                (map (fn [node cnt] 
+                                                        (let [stop    (first (filter #(= node (:id %)) stops))
+                                                              icon    (g/format fmt-route-image i cnt)]
+                                                          (assoc-in stop [:opts :icon] icon))) 
+                                                      nodes (range 1 (inc (count nodes)))))) 
+                                            (:routes solution) (range 1 (inc (count (:routes solution)))) colors)))
+                                    (into [] (filter #(contains? ss (:id %)) stops)))] 
+                         (conj ms  (first (filter #(= selected-depot (:id %)) depots)))))
+
+(defc= polylines        (flatten (mapv (fn [route i color] 
+                              (let [lines (:polylines route)
+                                    opts  {:strokeWeight "2" :strokeColor color}] 
+                                (map #(assoc {} :path (decode-path %) :opts opts) lines)))
+                            (:routes solution) (range 1 (inc (count (:routes solution)))) colors)))
+
+(defc= ready?           (and (not (nil? selected-depot)) (> (count selected-stops) min-stops ) (empty? solution-loading) (nil? solution)))
+(def ept-state          (mkremote 'castra.api/get-state state error loading))
+(def ept-route          (mkremote 'castra.api/get-routes solution error solution-loading))
+(defc rt-fn              nil)
+
+(cell= ((log "[solution-loading]")  (clj->js solution-loading )))
+
+;(cell= ((log "[rt-fn]")  (clj->js rt-fn)))
+(cell= ((log "[ready]")  (clj->js ready?)))
+;(cell= ((log "[markers]")  (clj->js markers)))
+;(cell= ((log "[error]") (:trace error)))
+
+(add-initfn! (fn [] (do (ept-state))))
+
+(defn meters-to-miles [meters]
+  (g/format "%.2f miles" (/ (js/parseInt meters) meters-per-mile)))
+
+(defn route []
+  (if @ready?
+    (let [stops       (mapv (fn [x] (select-keys x [:id :address :label :lat :lng])) (filter #(contains? (into #{} @selected-stops) (:id %)) @stops))
+          d           (first (filter #(= @selected-depot (:id %)) @depots))
+          depot       (select-keys d [:id :address :label :lat :lng])
+          ps          {:stops stops :depot depot :trucks @trucks :capacity @capacity}]    
+      (reset! rt-fn (ept-route ps)))
+    (js/alert "Not Ready")))
+
+(defn toggle-stop! [id]
+  (let [stop      (first (filter #(= id (:id %)) @stops))
+        stops     (into #{} @selected-stops)
+        n         ((if (contains? stops (:id stop)) disj conj) stops (:id stop))]
+      (reset! selected-stops (vec n))))
+
+(defn stop-selected? [id & stuff]
+  (let [stop      (first (filter #(= id (:id %)) @stops))]
+    (if (contains? (set @selected-stops) (:id stop)) "true" "false")))
+
+(defn depot-selected? [id]
+  (if (= id @selected-depot) true false))
+
+(defn toggle-all-stops! []
+  (let [ss    (if (= (.attr (js/jQuery "#toggle-stops") "checked") "checked") (mapv #(:id %) @stops) [])]
+    (reset! selected-stops ss)))
+
+(defn select-depot! [id]
+  (let [depot     (first (filter #(= id (:id %)) @depots))]
+    (reset! selected-depot (:id depot))) )

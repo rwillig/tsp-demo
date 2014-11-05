@@ -1,49 +1,33 @@
-(ns tspdemo.api.demo
-  (:refer-clojure :exclude [defn])
-  (:require [tspdemo.http.rules :refer [allow deny]])
+(ns castra.api
+  (:require [clojure.tools.nrepl.server      :refer [start-server stop-server]])
+  (:require [castra.rules :refer [allow deny]])
   (:require [monger.core :as mg])
   (:require [monger.collection :as mc])
-  (:require [tspdemo.config :as c])
-  (:require [tspSolver.cache :refer [shahash]])
-  (:require [tspSolver.graph :refer [vertices->edges]])
+  (:require [castra.config :as c])
+  (:require [geo-cache.cache :as ca :refer [shahash]])
+  (:require [geo-cache.mongo-cache :as m])
+  (:require [geo-graph.graph :refer [vertices->edges]])
   (:require [tspSolver.capacity-cluster :as cc])
-  (:require [tspSolver.google :as graph])
-  (:require [tailrecursion.castra :refer [defn]])
+  (:require [geo-graph.google :as graph])
+  (:require [tailrecursion.castra :refer [defrpc]])
   (:require [tspSolver.ant-colony :as ac]))
 
 (def fields ["id" "label" "address" "lat" "lng"])
-
-(defn mongo-connection []
-  (if 
-	  (and (c/mongo-instance?) (c/mongo-open?))
-	  mg/*mongodb-connection* (mg/connect-via-uri! c/mongo-uri)))
+;(def server (atom (start-server :port 7888)))
+(def cache (ca/get-cache {:type :mongo :uri c/mongo-uri :db c/db :edge c/edge-coll :address c/address-coll}))
 
 (defn get-depots []
-  (let [mongo (mongo-connection)
-        mdb    (mg/use-db! c/db)]
-    (mapv #(dissoc % :_id) (mc/find-maps c/address-coll {:type "depot"} fields))))
+  (do
+    (when (m/cache-ready? cache) (mapv #(dissoc % :_id) (mc/find-maps (:db @(:conn cache)) c/address-coll {:type "depot"} fields)))))
 
 (defn get-stops []
-  (let [mongo (mongo-connection)
-        mdb    (mg/use-db! c/db)]
-    (mapv #(dissoc % :_id) (mc/find-maps c/address-coll {:type "stop"} fields))))
+  (do 
+    (when (m/cache-ready? cache) (mapv #(dissoc % :_id) (mc/find-maps (:db @(:conn cache)) c/address-coll {:type "stop"} fields)))))
 
-(defn get-mqo-recs [n]
-  {:rpc [(allow)]}
-  (let [mongo (mongo-connection)
-        mdb   (mg/use-db! "mqotest")
-        recs  (map #(assoc %1 :id (str (:_id %1))) (take n (reverse (sort-by :distance (mc/find-maps "distances")))))]
-    {:records (map #(dissoc %1 :_id) recs)}))
-
-(defn get-state [] 
-  {:rpc [(allow)]}
-  {:stops (get-stops) :depots (get-depots)})
-  
+ 
 (defn get-polyline [from to]
-  (let [mongo  (mongo-connection)
-        mdb    (mg/use-db! c/db)
-        id     (shahash from to)]
-    (:points (dissoc (mc/find-one-as-map c/edge-coll {:id id} ["points"]) :_id))))
+  (let [id     (shahash from to)]
+    (when (m/cache-ready? cache) (:points (dissoc (mc/find-one-as-map (:db @(:conn cache)) c/edge-coll {:id id} ["points"]) :_id)))))
 
 (defn tour-stops [stops vertices]
   (mapv #(mapv (fn[x] (nth stops x)) %) (vertices->edges vertices)))
@@ -56,7 +40,7 @@
   (mapv #(:id (nth stops %)) vs))
 
 (defn get-route [stops]
-  (let [g       (graph/concurrent-google-graph stops "distance")
+  (let [g       (graph/concurrent-google-graph stops "distance" cache)
         c       (ac/make-ant-colony-solver-config nil)
         sol     (ac/make-ant-colony-solution g 0 c)
         s       (select-keys (ac/ant-colonies sol) [:vertices :trip])
@@ -86,7 +70,11 @@
         tstr     (str "Elapsed time: " t " seconds")]
    {:trucks (:trucks ps) :capacity (:capacity ps) :routes sols :time tstr}))
 
-(defn get-routes [ps]
+(defrpc get-routes [ps]
   {:rpc [(allow)]}
   (get-routes* ps))
 
+(defrpc get-state [] 
+  {:rpc [(allow)]}
+  {:stops (get-stops) :depots (get-depots)})
+ 

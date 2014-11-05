@@ -1,5 +1,5 @@
-(ns tspdemo.run
-  (:gen-class)
+(ns castra.core
+  ;(:gen-class)
   (:require
     [ring.adapter.jetty              :as jetty]
     [ring.middleware.resource        :refer [wrap-resource]]
@@ -13,7 +13,7 @@
 
 (def app
   (->
-    (castra  'tspdemo.api.demo)
+    (castra  'castra.api)
     (wrap-session {:store (cookie-store {:key "a 16-byte secret"})})
     (wrap-resource "public")    
     (wrap-index-paths "index.html")    
@@ -23,10 +23,4 @@
   "I don't do a whole lot."
   [& args]
   (jetty/run-jetty #'app {:join? false :port 3000}))
-
-(defn run-task [boot]
-  (-main)
-  (fn [continue]
-    (fn [event]
-      (continue event))))  
 

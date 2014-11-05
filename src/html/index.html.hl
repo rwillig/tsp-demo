@@ -2,7 +2,8 @@
 (page "index.html"
   (:refer-hoplon :exclude  [center])
   (:require
-       [hoplon.google.jsapi.maps :as m :refer  [google-map]]
+       [tspdemo.app              :as app]
+       [hoplon.google.jsapi.maps :as m :refer  [google-map google-map-control]]
        [hoplon.google.jsapi.loader     :refer  [api-key]]
        [hoplon.twitter.bootstrap :as b :refer  [container tab tabs]]))
 
@@ -26,8 +27,8 @@
     <!-- Bootstrap core CSS -->
 
     <!-- Custom styles for this template -->
-    <!--link href="css/dashboard.css" rel="stylesheet"-->
     <link href="css/starter-template.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
 
   </head>
   <body>
@@ -38,8 +39,8 @@
         </div>
         <div class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
-            <li class="active"><a shape="rect" href="#/home">Home</a></li>
-            <li><a shape="rect" href="#/demo">Demo</a></li>
+            <li class='{{ (cell= {:active (= route rt-home)}) }}'><a shape="rect" href="#/home">Home</a></li>
+            <li class='{{ (cell= {:active (= route rt-demo)}) }}'><a shape="rect" href="#/demo">Demo</a></li>
           </ul>
         </div>
       </div>
@@ -143,28 +144,124 @@
     </div>
     <div do-toggle='{{ (cell= (= route rt-demo)) }}'>
       <div class="container-fluid">
-        <div class="row">
-          <div class="col-sm-3 col-md-2 sidebar">
-            <ul class="nav nav-sidebar">
-              <li class="active"><a href="#">Overview</a></li>
-              <li><a href="#">Reports</a></li>
-              <li><a href="#">Analytics</a></li>
-              <li><a href="#">Export</a></li>
-            </ul>
-            <ul class="nav nav-sidebar">
-              <li><a href="">Nav item</a></li>
-              <li><a href="">Nav item again</a></li>
-              <li><a href="">One more nav</a></li>
-              <li><a href="">Another nav item</a></li>
-              <li><a href="">More navigation</a></li>
-            </ul>
-            <ul class="nav nav-sidebar">
-              <li><a href="">Nav item again</a></li>
-              <li><a href="">One more nav</a></li>
-              <li><a href="">Another nav item</a></li>
-            </ul>
+        <div class="row" style="margin-top: 15px;">
+          <div class="col-sm-3 col-md-3 sidebar">
+            <fieldset class="depot-list">
+              <legend>depots</legend>
+              <ul class="nav nav-sidebar depots-inner">
+              <loop-tpl bindings='{{ [[i {:keys [id label address] :as the-depot}] (cell= (map-indexed vector app/depots))] }}'>
+                <li>
+                  <div>
+                    <input 
+                      class="checky" type="radio" name="depot" click='{{ #(app/select-depot! @id) }}' 
+                      checked='{{ (cell= (= app/selected-depot the-depot))}}' />
+                    <strong text='{{ label }}'></strong><br>
+                    <span text='{{ address }}'></span><br>
+                  </div>
+                </li>
+              </loop-tpl>
+              </ul>
+            </fieldset >
+            <fieldset class="stops-list">
+              <legend>stops</legend>
+              <div class="stops-inner">
+                <ul class="nav nav-sidebar">
+                <loop-tpl 
+                    bind-ids='{{[cb#] }}'
+                    bindings='{{ [[i {:keys [id label address] :as the-stop}] (cell= (map-indexed vector app/stops))] }}'>
+                  <li>
+                    <div>
+                      <input class="checky" type="checkbox" click='{{ #(app/toggle-stop! @id) }}'  id='{{ cb# }}'
+                              do-attr='{{ (cell= {:checked (contains? (set app/selected-stops) id)}) }}' />
+                      <strong text='{{ label }}'></strong><br>
+                      <span text='{{ address }}'></span><br>
+                    </div>
+                  </li>
+                </loop-tpl>
+                </ul>
+              </div>
+            </fieldset>
           </div>
-          <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <div class="col-sm-9 col-md-9 main">
+            <google-map 
+              css='{{ (cell=  {:height "600px" :width "90%" :margin "0" :border "1px solid blue"}) }}'
+              hoplon.google.jsapi.maps.center=' {{ app/center }}'
+              hoplon.google.jsapi.maps.opts=' {{ {:zoom 10 :mapTypeControl false :streetViewControl false} }}'
+              hoplon.google.jsapi.maps.polylines=' {{ app/polylines }}'
+              hoplon.google.jsapi.maps.markers=' {{ app/markers }}'>
+              <google-map-control position="TR">
+                <div style="padding: 5px;">
+                  <div style="background-color: white; border: solid 2px; text-align: center;" title="select/unselect all stops">
+                    <div style="padding-left: 4px; padding-right: 4px;">
+                      <input type="checkbox" class="checky" id="toggle-stops" click='{{ #(app/toggle-all-stops!) }}' style="margin-right 5px;"/>
+                      <label for="toggle-stops">toggle all stops</label>
+                    </div>
+                  </div>
+                </div>
+                <div style="padding: 5px;">
+                  <div style="background-color: white; border: solid 2px; text-align: center;" title="how many trucks">
+                    <div style="padding-left: 4px; padding-right: 4px;">
+                      <label for="trucks" style="margin-right: 5px;">trucks</label>
+                      <select size="1" name="trucks" id="trucks" change='{{ #(reset! app/trucks (val-id :trucks))}}' style="width: 40px;">
+                      <loop-tpl bindings='{{ [index (range 1 (inc app/max-trucks))] }}'>
+                        <option value='{{ (cell= index) }}' text='{{ (cell= index) }}'/>
+                      </loop-tpl>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </google-map-control>
+              <google-map-control position="RT">
+                 <div style="padding: 5px;">
+                  <div style="background-color: white; border: solid 2px; text-align: center;" title="stops per truck">
+                    <div style="padding-left: 4px; padding-right: 4px;">
+                      <label for="capacity" style="margin-right: 5px;">capacity
+                        <input type="range" min="6" max='{{ @app/capacity }}' value='{{ @app/capacity}}' step="1" change='{{ #(reset! app/capacity (val-id :capacity)) }}' id="capacity"/>
+                      </label>
+                      <span text='{{ app/capacity }}'/>
+                    </div>
+                  </div>
+                 </div>
+                <div style="padding: 5px;">
+                  <div style="padding: 5px 25px; background-color: white; border: solid 2px;">
+                    <div class="row">
+                      <button title="solve the route" type="button" class="btn btn-default btn-xs" id="route" click='{{ #(app/route) }}'>route</button>
+                      <button title="clear the solution" type="button" class="btn btn-primary btn-xs" id="route" click='{{ #(reset! app/solution nil) }}'>clear</button>
+                    </div>
+                  </div>
+                </div>
+              </google-map-control>
+              <google-map-control position="TC">
+                 <div style="padding: 5px;" toggle='{{ (cell= (not (nil? (:time app/solution)))) }}' >
+                  <div style="background-color: white; border: solid 2px; text-align: center;">
+                    <div style="padding-left: 4px; padding-right: 4px;">
+                      <label text='{{ (cell= (:time app/solution)) }}'/>
+                    </div>
+                  </div>
+                 </div>
+              </google-map-control>
+              <google-map-control position="BC">
+                 <div style="padding: 5px;" toggle='{{ (cell= (not (nil? app/solution )))}}' >
+                  <div style="background-color: bisque; border: solid 2px; text-align: center;">
+                    <div style="padding-left: 4px; padding-right: 4px;">
+                      <div>
+                        <loop-tpl bindings='{{ [[i {:keys [trip]} ] (cell= (map-indexed vector (if-not (nil? app/solution) (:routes app/solution) "a")))] }}'>
+                          <div style='{{ (cell= (do (str "color: " (nth app/colors i "black") ";"))) }}'
+                              text='{{ (cell= (if (not (nil? trip)) (str "Trip Total: " (app/meters-to-miles trip)) "somethings wrong")) }}'/>
+                          <br/>
+                        </loop-tpl>
+                      </div>
+                    </div>
+                  </div>
+                 </div>
+              </google-map-control>
+            </google-map>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-3 col-md-3 sidebar">
+          </div>
+          <div class="col-sm-9 col-md-9 main">
           </div>
         </div>
       </div>
