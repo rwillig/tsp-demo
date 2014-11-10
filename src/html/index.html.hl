@@ -4,8 +4,7 @@
   (:require
        [tspdemo.app              :as app]
        [hoplon.google.jsapi.maps :as m :refer  [google-map google-map-control]]
-       [hoplon.google.jsapi.loader     :refer  [api-key]]
-       [hoplon.twitter.bootstrap :as b :refer  [container tab tabs]]))
+       [hoplon.google.jsapi.loader     :refer  [api-key]]))
 
 (def rt-home "#/home")
 (def rt-demo "#/demo")
@@ -27,6 +26,10 @@
     <!-- Bootstrap core CSS -->
 
     <!-- Custom styles for this template -->
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/bootstrap-theme.css" rel="stylesheet">
+    <link href="css/ladda-themeless.css" rel="stylesheet">
+
     <link href="css/starter-template.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
 
@@ -51,7 +54,7 @@
           <div class="container map">
             <div class="container">
               <h2>Capacitated Vehicle Routing Demo</h2>
-              <p class="hyphenate Hyphenator166hide" style="text-align: justify; ">using the full hoplon stack</p>
+              <p class="hyphenate" style="text-align: justify; ">using the full hoplon stack</p>
             </div>
           </div>
         </div>
@@ -152,9 +155,10 @@
               <loop-tpl bindings='{{ [[i {:keys [id label address] :as the-depot}] (cell= (map-indexed vector app/depots))] }}'>
                 <li>
                   <div>
-                    <input 
-                      class="checky" type="radio" name="depot" click='{{ #(app/select-depot! @id) }}' 
-                      checked='{{ (cell= (= app/selected-depot the-depot))}}' />
+                    <span style="padding-right: 5px;">
+                      <input class="checky" type="radio" name="depot" click='{{ #(app/select-depot! @id) }}' 
+                        checked='{{ (cell= (= app/selected-depot the-depot))}}' />
+                    </span>
                     <strong text='{{ label }}'></strong><br>
                     <span text='{{ address }}'></span><br>
                   </div>
@@ -171,8 +175,10 @@
                     bindings='{{ [[i {:keys [id label address] :as the-stop}] (cell= (map-indexed vector app/stops))] }}'>
                   <li>
                     <div>
-                      <input class="checky" type="checkbox" click='{{ #(app/toggle-stop! @id) }}'  id='{{ cb# }}'
-                              do-attr='{{ (cell= {:checked (contains? (set app/selected-stops) id)}) }}' />
+                      <span style="padding-right: 5px;">
+                        <input class="checky" type="checkbox" click='{{ #(app/toggle-stop! @id) }}'  id='{{ cb# }}'
+                                do-attr='{{ (cell= {:checked (contains? (set app/selected-stops) id)}) }}' />
+                      </span>
                       <strong text='{{ label }}'></strong><br>
                       <span text='{{ address }}'></span><br>
                     </div>
@@ -225,8 +231,10 @@
                 <div style="padding: 5px;">
                   <div style="padding: 5px 25px; background-color: white; border: solid 2px;">
                     <div class="row">
-                      <button title="solve the route" type="button" class="btn btn-default btn-xs" id="route" click='{{ #(app/route) }}'>route</button>
-                      <button title="clear the solution" type="button" class="btn btn-primary btn-xs" id="route" click='{{ #(reset! app/solution nil) }}'>clear</button>
+                      <button title="solve the route" type="button" class="btn btn-primary btn-xs ladda-button" data-style="contract-overlay"  click='{{ #(app/route %) }}'>
+                        <span class="ladda-label">route</span>
+                      </button>
+                      <button title="clear the solution" type="button" class="btn btn-default btn-xs" id="route" click='{{ #(reset! app/solution nil) }}'>clear</button>
                     </div>
                   </div>
                 </div>
@@ -258,12 +266,7 @@
             </google-map>
           </div>
         </div>
-        <div class="row">
-          <div class="col-sm-3 col-md-3 sidebar">
-          </div>
-          <div class="col-sm-9 col-md-9 main">
-          </div>
-        </div>
+       </div>
       </div>
     </div>
     <footer style="padding:30px 0px;">

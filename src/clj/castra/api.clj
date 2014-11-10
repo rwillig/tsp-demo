@@ -15,11 +15,6 @@
 (def fields ["id" "label" "address" "lat" "lng"])
 
 (def cache  (delay (ca/get-cache {:type :mongo :uri c/mongo-uri :db c/db :edge c/edge-coll :address c/address-coll})))
-(defn init []
-  (start-server :port 7888))
-
-(defn destroy []
-  (stop-server))
 
 (defn get-depots []
   (do
@@ -45,7 +40,7 @@
   (mapv #(:id (nth stops %)) vs))
 
 (defn get-route [stops]
-  (let [g       (graph/concurrent-google-graph stops "distance" cache)
+  (let [g       (graph/concurrent-google-graph stops "distance" @cache)
         c       (ac/make-ant-colony-solver-config nil)
         sol     (ac/make-ant-colony-solution g 0 c)
         s       (select-keys (ac/ant-colonies sol) [:vertices :trip])

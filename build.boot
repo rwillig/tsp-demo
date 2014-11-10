@@ -5,7 +5,6 @@
 
 (set-env!
   :dependencies '[ [tailrecursion/hoplon                    "5.10.24"]
-                   [io.hoplon/twitter.bootstrap             "0.1.0"]
                    [io.hoplon/google.jsapi                  "0.3.5"]
                    [ring                                    "1.3.1"]
                    [org.clojure/tools.nrepl                 "0.2.5"]
@@ -16,7 +15,7 @@
                    [tsp                                     "2.0.4"]
                   ]
   :out-path     "resources/public"
-  :src-paths    #{"src" "src/clj" "src/cljs"})
+  :src-paths    #{"src" "src/clj" })
 
 (require
   '[tailrecursion.hoplon.boot      :refer :all]

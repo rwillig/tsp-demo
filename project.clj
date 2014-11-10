@@ -22,4 +22,4 @@
                 
   :source-paths ["src/clj" "src/html" "src/cljs"]
   :war-resources-path "public"
-  :ring         {:handler castra.core/app :init castra.api/init :destroy castra.api/destroy  })
+  :ring         {:handler castra.core/app })

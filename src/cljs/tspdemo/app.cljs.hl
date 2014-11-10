@@ -9,8 +9,7 @@
         [goog.string.format               :as gf]
         [tailrecursion.javelin            :as j :refer  [cell]]
         [tailrecursion.hoplon             :as w :refer  [add-initfn!]]
-        [clojure.set                      :as s :refer  [difference]]
-        [tailrecursion.castra             :as c :refer  [mkremote *url*]]))
+        [tailrecursion.castra             :as c :refer  [mkremote]]))
 
 (def max-trucks 6)
 (def meters-per-mile 1609.34)
@@ -66,10 +65,7 @@
 (def ept-route          (mkremote 'castra.api/get-routes solution error solution-loading))
 (defc rt-fn              nil)
 
-(cell= ((log "[solution-loading]")  (clj->js solution-loading )))
 
-;(cell= ((log "[rt-fn]")  (clj->js rt-fn)))
-(cell= ((log "[ready]")  (clj->js ready?)))
 ;(cell= ((log "[markers]")  (clj->js markers)))
 (cell= ((log "[error]") (:trace error)))
 
@@ -78,13 +74,17 @@
 (defn meters-to-miles [meters]
   (g/format "%.2f miles" (/ (js/parseInt meters) meters-per-mile)))
 
-(defn route []
+(defn route [e]
   (if @ready?
     (let [stops       (mapv (fn [x] (select-keys x [:id :address :label :lat :lng])) (filter #(contains? (into #{} @selected-stops) (:id %)) @stops))
           d           (first (filter #(= @selected-depot (:id %)) @depots))
           depot       (select-keys d [:id :address :label :lat :lng])
-          ps          {:stops stops :depot depot :trucks @trucks :capacity @capacity}]    
-      (reset! rt-fn (ept-route ps)))
+          l           (.create  js/Ladda (.-currentTarget e))
+          ps          {:stops stops :depot depot :trucks @trucks :capacity @capacity}
+          prom        (ept-route ps)]
+      (.start l)
+      (.always prom #(.stop l))
+      )
     (js/alert "Not Ready")))
 
 (defn toggle-stop! [id]
