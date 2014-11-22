@@ -38,10 +38,17 @@
      (strong title)
      (p body)))
 
-(defc= stops            (mapv #(assoc % :opts {:icon stop-image} :lon (:lng %) :info (info :title (:label %) :body (:address %))) (:stops state)))
+(defc= stops            (mapv #(assoc % 
+                                      :opts {:icon stop-image} 
+                                      :lon (:lng %) 
+                                      :info (info 
+                                              :title 
+                                              (:label %) 
+                                              :body (:address %))) 
+                              (:stops state)))
 (defc= depots           (mapv #(assoc % :opts {:icon depot-image} :lon (:lng %) :info (info :title (:label %) :body (:address %))) (:depots state)))
 (defc= markers          (let [ss   (into #{} selected-stops)
-                             ms   (if solution
+                              ms   (if solution
                                     (do
                                       (flatten (map (fn [route i color] 
                                               (let [nodes (into [] (rest (butlast (:route route))))]
@@ -66,31 +73,51 @@
 (defc rt-fn              nil)
 
 
-;(cell= ((log "[markers]")  (clj->js markers)))
+(cell= ((log "[solution]")  (clj->js solution)))
 (cell= ((log "[error]") (:trace error)))
 
 (add-initfn! (fn [] (do (ept-state))))
+
+(defn seconds->hms [seconds]
+  (let [h   (quot seconds 3600)
+        m   (quot (rem  seconds 3600) 60)
+        s   (rem (rem seconds 3600) 60)]
+    (g/format "%02d:%02d:%02d" h m s)))
 
 (defn meters-to-miles [meters]
   (g/format "%.2f miles" (/ (js/parseInt meters) meters-per-mile)))
 
 (defn route [e]
   (if @ready?
-    (let [stops       (mapv (fn [x] (select-keys x [:id :address :label :lat :lng])) (filter #(contains? (into #{} @selected-stops) (:id %)) @stops))
+    (let [stops       (mapv 
+                        (fn [x] (select-keys x [:id 
+                                                :address 
+                                                :label 
+                                                :lat 
+                                                :lng])) 
+                        (filter 
+                          #(contains? (into #{} @selected-stops) (:id %)) 
+                          @stops))
           d           (first (filter #(= @selected-depot (:id %)) @depots))
           depot       (select-keys d [:id :address :label :lat :lng])
           l           (.create  js/Ladda (.-currentTarget e))
-          ps          {:stops stops :depot depot :trucks @trucks :capacity @capacity}
+          ps          {:stops stops 
+                       :depot depot 
+                       :trucks @trucks 
+                       :capacity @capacity}
           prom        (ept-route ps)]
       (.start l)
-      (.always prom #(.stop l))
-      )
+      (.always prom #(.stop l)))
     (js/alert "Not Ready")))
 
 (defn toggle-stop! [id]
   (let [stop      (first (filter #(= id (:id %)) @stops))
         stops     (into #{} @selected-stops)
-        n         ((if (contains? stops (:id stop)) disj conj) stops (:id stop))]
+        n         ((if 
+                     (contains? stops (:id stop)) 
+                     disj 
+                     conj) 
+                   stops (:id stop))]
       (reset! selected-stops (vec n))))
 
 (defn stop-selected? [id & stuff]
@@ -101,7 +128,10 @@
   (if (= id @selected-depot) true false))
 
 (defn toggle-all-stops! []
-  (let [ss    (if (= (.attr (js/jQuery "#toggle-stops") "checked") "checked") (mapv #(:id %) @stops) [])]
+  (let [ss    (if 
+                (= (.attr (js/jQuery "#toggle-stops") "checked") "checked") 
+                (mapv #(:id %) @stops) 
+                [])]
     (reset! selected-stops ss)))
 
 (defn select-depot! [id]

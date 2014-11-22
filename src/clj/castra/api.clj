@@ -7,27 +7,42 @@
   (:require [geo-cache.cache :as ca :refer [shahash]])
   (:require [geo-cache.mongo-cache :as m])
   (:require [geo-graph.graph :refer [vertices->edges]])
-  (:require [tspSolver.capacity-cluster :as cc])
+  (:require [tsp.capacity-cluster :as cc])
   (:require [geo-graph.google :as graph])
   (:require [tailrecursion.castra :refer [defrpc]])
-  (:require [tspSolver.ant-colony :as ac]))
+  (:require [tsp.ant-colony :as ac]))
 
 (def fields ["id" "label" "address" "lat" "lng"])
 
-(def cache  (delay (ca/get-cache {:type :mongo :uri c/mongo-uri :db c/db :edge c/edge-coll :address c/address-coll})))
+(def cache  (delay (ca/get-cache {:type :mongo 
+                                  :uri c/mongo-uri 
+                                  :db c/db 
+                                  :edge c/edge-coll 
+                                  :address c/address-coll})))
 
 (defn get-depots []
   (do
-    (when (m/cache-ready? @cache) (mapv #(dissoc % :_id) (mc/find-maps (:db @(:conn @cache)) c/address-coll {:type "depot"} fields)))))
+    (when (m/cache-ready? @cache) 
+      (mapv #(dissoc % :_id) 
+            (mc/find-maps 
+              (:db @(:conn @cache)) c/address-coll {:type "depot"} fields)))))
 
 (defn get-stops []
   (do 
-    (when (m/cache-ready? @cache) (mapv #(dissoc % :_id) (mc/find-maps (:db @(:conn @cache)) c/address-coll {:type "stop"} fields)))))
+    (when (m/cache-ready? @cache) 
+      (mapv #(dissoc % :_id) 
+            (mc/find-maps 
+              (:db @(:conn @cache)) c/address-coll {:type "stop"} fields)))))
 
  
 (defn get-polyline [from to]
   (let [id     (shahash from to)]
-    (when (m/cache-ready? @cache) (:points (dissoc (mc/find-one-as-map (:db @(:conn @cache)) c/edge-coll {:id id} ["points"]) :_id)))))
+    (when (m/cache-ready? @cache) 
+      (:points 
+        (dissoc 
+          (mc/find-one-as-map 
+            (:db @(:conn @cache)) c/edge-coll {:id id} ["points"]) 
+          :_id)))))
 
 (defn tour-stops [stops vertices]
   (mapv #(mapv (fn[x] (nth stops x)) %) (vertices->edges vertices)))
@@ -40,13 +55,18 @@
   (mapv #(:id (nth stops %)) vs))
 
 (defn get-route [stops]
-  (let [g       (graph/concurrent-google-graph stops "distance" @cache)
+  (let [g       (graph/concurrent-google-graph stops  @cache)
         c       (ac/make-ant-colony-solver-config nil)
-        sol     (ac/make-ant-colony-solution g 0 c)
-        s       (select-keys (ac/ant-colonies sol) [:vertices :trip])
-        ts      (tour-stops stops (:vertices s))
+        sol     (ac/make-ant-colony-solution g c)
+        s       (select-keys (ac/ant-colonies sol 5) 
+                             [:tour :distance :duration])
+        ts      (tour-stops stops (:tour s))
         p       (tour-polylines ts)]
-    {:route (route (:vertices s) stops) :polylines p :trip (:trip s)}))
+    (assoc {} 
+           :route (route (:tour s) stops) 
+           :polylines p 
+           :distance (:distance s) 
+           :duration (:duration s))))
 
 (defn get-clusters [ps]
   (let [s        (:stops ps)
