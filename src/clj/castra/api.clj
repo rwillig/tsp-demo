@@ -58,8 +58,7 @@
   (let [g       (graph/concurrent-google-graph stops  @cache)
         c       (ac/make-ant-colony-solver-config nil)
         sol     (ac/make-ant-colony-solution g c)
-        s       (select-keys (ac/ant-colonies sol 5) 
-                             [:tour :distance :duration])
+        s       (ac/ant-colonies sol 10) 
         ts      (tour-stops stops (:tour s))
         p       (tour-polylines ts)]
     (assoc {} 
