@@ -17,7 +17,7 @@
                    [ring                                  "1.3.1"]
                    [org.clojure/tools.nrepl               "0.2.5"]
                    [raywillig/ring-middleware-index-file  "1.0.7"]
-                   [tsp                                   "2.0.5"]
+                   [tsp                                   "2.1.0"]
                   ]
                 
   :source-paths ["src/clj" "src/html" "src/cljs"]

@@ -12,7 +12,7 @@
                    [tailrecursion/boot.task                 "2.2.4"]
                    [tailrecursion/boot.notify               "2.0.2"]
                    [tailrecursion/boot.ring                 "0.2.1"]
-                   [tsp                                     "2.0.5"]
+                   [tsp                                     "2.1.0"]
                   ]
   :out-path     "resources/public"
   :src-paths    #{"src" "src/clj" })
