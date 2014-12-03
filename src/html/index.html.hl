@@ -192,7 +192,7 @@
             <google-map 
               css='{{ (cell=  {:height "600px" :width "90%" :margin "0" :border "1px solid blue"}) }}'
               hoplon.google.jsapi.maps.center=' {{ app/center }}'
-              hoplon.google.jsapi.maps.opts=' {{ {:zoom 10 :mapTypeControl false :streetViewControl false} }}'
+              hoplon.google.jsapi.maps.opts=' {{ app/map-opts }}'
               hoplon.google.jsapi.maps.polylines=' {{ app/polylines }}'
               hoplon.google.jsapi.maps.markers=' {{ app/markers }}'>
               <google-map-control position="TR">

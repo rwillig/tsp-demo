@@ -20,6 +20,8 @@
 (reset! api-key "AIzaSyDGqkxjAuq4IeG7rUt6C33Jsiv41bkQfBk")  
 (def log #(fn [x] (.log js/console % (clj->js x))))
 
+(defc map-style "[{\"featureType\":\"road\",\"elementType\":\"geometry\",\"stylers\":[{\"visibility\":\"simplified\"}]},{\"featureType\":\"road.arterial\",\"stylers\":[{\"hue\":149},{\"saturation\":-78},{\"lightness\":0}]},{\"featureType\":\"road.highway\",\"stylers\":[{\"hue\":-31},{\"saturation\":-40},{\"lightness\":2.8}]},{\"featureType\":\"poi\",\"elementType\":\"label\",\"stylers\":[{\"visibility\":\"off\"}]},{\"featureType\":\"landscape\",\"stylers\":[{\"hue\":163},{\"saturation\":-26},{\"lightness\":-1.1}]},{\"featureType\":\"transit\",\"stylers\":[{\"visibility\":\"off\"}]},{\"featureType\":\"water\",\"stylers\":[{\"hue\":3},{\"saturation\":-24.24},{\"lightness\":-38.57}]}]")
+
 (defc state            nil)
 (defc error            nil)
 (defc loading          nil)
@@ -32,6 +34,10 @@
 (defc selected-stops   [])
 (defc selected-depot   nil)
 (defc center           {:lat 25.763 :lon -80.331 })
+(defc map-zoom          {:zoom 10})
+(defc map-ctrl          {:mapTypeControl false :streetViewControl false})
+(defc= map-styles       {:styles  (js->clj (.parse js/JSON map-style))})
+(defc= map-opts         (into {} (filter #(not (nil? (val %))) (merge map-zoom map-ctrl map-styles))))
 
 (defelem info  [{:keys  [title body]} _]
    (div 
