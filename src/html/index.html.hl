@@ -160,7 +160,7 @@
                         checked='{{ (cell= (= app/selected-depot the-depot))}}' />
                     </span>
                     <strong text='{{ label }}'></strong><br>
-                    <span text='{{ address }}'></span><br>
+                    <!--span text='{{ address }}'></span><br-->
                   </div>
                 </li>
               </loop-tpl>
@@ -180,7 +180,7 @@
                                 do-attr='{{ (cell= {:checked (contains? (set app/selected-stops) id)}) }}' />
                       </span>
                       <strong text='{{ label }}'></strong><br>
-                      <span text='{{ address }}'></span><br>
+                      <!--span text='{{ address }}'></span><br-->
                     </div>
                   </li>
                 </loop-tpl>
