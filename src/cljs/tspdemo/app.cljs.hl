@@ -20,7 +20,18 @@
 (reset! api-key "AIzaSyDGqkxjAuq4IeG7rUt6C33Jsiv41bkQfBk")  
 (def log #(fn [x] (.log js/console % (clj->js x))))
 
-(defc map-style "[{\"featureType\":\"road\",\"elementType\":\"geometry\",\"stylers\":[{\"visibility\":\"simplified\"}]},{\"featureType\":\"road.arterial\",\"stylers\":[{\"hue\":149},{\"saturation\":-78},{\"lightness\":0}]},{\"featureType\":\"road.highway\",\"stylers\":[{\"hue\":-31},{\"saturation\":-40},{\"lightness\":2.8}]},{\"featureType\":\"poi\",\"elementType\":\"label\",\"stylers\":[{\"visibility\":\"off\"}]},{\"featureType\":\"landscape\",\"stylers\":[{\"hue\":163},{\"saturation\":-26},{\"lightness\":-1.1}]},{\"featureType\":\"transit\",\"stylers\":[{\"visibility\":\"off\"}]},{\"featureType\":\"water\",\"stylers\":[{\"hue\":3},{\"saturation\":-24.24},{\"lightness\":-38.57}]}]")
+(defc map-style 
+  "[{\"featureType\":\"road\",\"elementType\":\"geometry\",\"stylers\":
+  [{\"visibility\":\"simplified\"}]},{\"featureType\":\"road.arterial\",
+  \"stylers\":[{\"hue\":149},{\"saturation\":-78},{\"lightness\":0}]},
+  {\"featureType\":\"road.highway\",\"stylers\":
+  [{\"hue\":-31},{\"saturation\":-40},{\"lightness\":2.8}]},
+  {\"featureType\":\"poi\",\"elementType\":\"label\",\"stylers\":
+  [{\"visibility\":\"off\"}]},{\"featureType\":\"landscape\",\"stylers\":
+  [{\"hue\":163},{\"saturation\":-26},{\"lightness\":-1.1}]},
+  {\"featureType\":\"transit\",\"stylers\":[{\"visibility\":\"off\"}]},
+  {\"featureType\":\"water\",\"stylers\":
+  [{\"hue\":3},{\"saturation\":-24.24},{\"lightness\":-38.57}]}]")
 
 (defc state            nil)
 (defc error            nil)
@@ -34,15 +45,32 @@
 (defc selected-stops   [])
 (defc selected-depot   nil)
 (defc center           {:lat 25.763 :lon -80.331 })
-(defc map-zoom          {:zoom 10})
-(defc map-ctrl          {:mapTypeControl false :streetViewControl false})
-(defc= map-styles       {:styles  (js->clj (.parse js/JSON map-style))})
-(defc= map-opts         (into {} (filter #(not (nil? (val %))) (merge map-zoom map-ctrl map-styles))))
+(defc map-zoom         {:zoom 10})
+(defc map-ctrl         {:mapTypeControl false :streetViewControl false})
+(defc= map-styles      {:styles  (js->clj (.parse js/JSON map-style))})
+(defc= map-opts        (into {} (filter #(not (nil? (val %))) (merge map-zoom map-ctrl map-styles))))
 
 (defelem info  [{:keys  [title body]} _]
    (div 
      (strong title)
      (p body)))
+
+(defelem ui-toggle [{:keys [trigger hidden? effect options duration] 
+                     :or {duration 500 options {}}
+                     :as attr} kids]
+  (let [div-id      (str (gensym))
+        elem-attrs  (dissoc attr trigger)]
+    ;(.log js/console duration)
+    (with-let [elem (div (assoc elem-attrs :id div-id) kids)]
+      (with-init! 
+        (when hidden? (.hide (js/jQuery elem)))
+        (.click 
+          (js/jQuery (str "#" trigger)) 
+          #(.toggle 
+             (js/jQuery elem) 
+             (clj->js effect) 
+             (clj->js options) 
+             duration))))))
 
 (defc= stops            (mapv #(assoc % 
                                       :opts {:icon stop-image} 
@@ -79,8 +107,8 @@
 (defc rt-fn              nil)
 
 
-(cell= ((log "[solution]")  (clj->js solution)))
-(cell= ((log "[error]") (:trace error)))
+;(cell= ((log "[solution]")  (clj->js solution)))
+(cell= (if error ((log "[error]") (:trace error))))
 
 (add-initfn! (fn [] (do (ept-state))))
 

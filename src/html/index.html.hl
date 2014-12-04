@@ -29,6 +29,7 @@
     <link href="css/bootstrap.css" rel="stylesheet">
     <link href="css/bootstrap-theme.css" rel="stylesheet">
     <link href="css/ladda-themeless.css" rel="stylesheet">
+    <link href="css/jquery-ui.css" rel="stylesheet">
 
     <link href="css/starter-template.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
@@ -171,15 +172,19 @@
               <div class="stops-inner">
                 <ul class="nav nav-sidebar">
                 <loop-tpl 
-                    bind-ids='{{[cb#] }}'
+                    bind-ids='{{[cb# btn#] }}'
                     bindings='{{ [[i {:keys [id label address] :as the-stop}] (cell= (map-indexed vector app/stops))] }}'>
                   <li>
                     <div>
                       <span style="padding-right: 5px;">
                         <input class="checky" type="checkbox" click='{{ #(app/toggle-stop! @id) }}'  id='{{ cb# }}'
                                 do-attr='{{ (cell= {:checked (contains? (set app/selected-stops) id)}) }}' />
-                      </span>
-                      <strong text='{{ label }}'></strong><br>
+                      </span><span class="glyphicon glyphicon-time" id='{{ btn# }}'></span>
+                      <strong style="margin-left: 8px;" text='{{ label }}'></strong><br>
+                      <app.ui-toggle trigger='{{ btn# }}' effect="blind" hidden?="true" options='{{ {:easing "linear"} }}'>
+                        <h3 class="ui-widget-header ui-corner-all">time window</h3>
+                        <p>time window stuff goes here </p>
+                      </app.ui-toggle>
                       <!--span text='{{ address }}'></span><br-->
                     </div>
                   </li>
