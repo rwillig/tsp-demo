@@ -55,13 +55,33 @@
      (strong title)
      (p body)))
 
+
+(defelem time-select [{:keys [start end interval]
+                       :or {interval 15 start "08:00" end "18:00"}
+                       :as attrs} _]
+  (let [coll    (cell [])
+        opts    (cell= (map #(option :value (:value %) (:opt %)) coll))
+        i       {:minute interval}]
+    (with-init!
+      (let [m     (js/moment. start "HH:mm")
+            e     (js/moment. end "HH:mm")]
+        (while 
+          (not (.isAfter m e)) 
+          (do 
+            (swap! coll conj (assoc {} 
+                                    :value (.format m "H:mm")
+                                    :opt (.format m "h:mm a"))) 
+            (.add m (clj->js i))))))
+    (select (dissoc attrs :start :end :interval) opts)
+    ))
+
 (defelem ui-toggle [{:keys [trigger hidden? effect options duration] 
                      :or {duration 500 options {}}
                      :as attr} kids]
   (let [div-id      (str (gensym))
-        elem-attrs  (dissoc attr trigger)]
-    ;(.log js/console duration)
+        elem-attrs  (dissoc attr trigger hidden? effect options duration)]
     (with-let [elem (div (assoc elem-attrs :id div-id) kids)]
+      ;(.log js/console elem)
       (with-init! 
         (when hidden? (.hide (js/jQuery elem)))
         (.click 

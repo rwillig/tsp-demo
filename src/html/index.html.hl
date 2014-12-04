@@ -182,8 +182,8 @@
                       </span><span class="glyphicon glyphicon-time" id='{{ btn# }}'></span>
                       <strong style="margin-left: 8px;" text='{{ label }}'></strong><br>
                       <app.ui-toggle trigger='{{ btn# }}' effect="blind" hidden?="true" options='{{ {:easing "linear"} }}'>
-                        <h3 class="ui-widget-header ui-corner-all">time window</h3>
-                        <p>time window stuff goes here </p>
+                      <span>deliver between<br> 
+                        <app.time-select start="08:00" end="18:00" interval="60"/> and <app.time-select start="08:30" end="18:00" interval="60"/></span>
                       </app.ui-toggle>
                       <!--span text='{{ address }}'></span><br-->
                     </div>
