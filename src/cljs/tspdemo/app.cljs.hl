@@ -55,42 +55,60 @@
      (strong title)
      (p body)))
 
-
-(defelem time-select [{:keys [start end interval]
-                       :or {interval 15 start "08:00" end "18:00"}
+(defc toggle-groups     {})
+(defc time-windows      {})
+(defelem time-select [{:keys [start end interval noop]
+                       :or {interval 30 start "08:00" end "18:00" noop "choose"}
                        :as attrs} _]
   (let [coll    (cell [])
-        opts    (cell= (map #(option :value (:value %) (:opt %)) coll))
-        i       {:minute interval}]
-    (with-init!
-      (let [m     (js/moment. start "HH:mm")
-            e     (js/moment. end "HH:mm")]
-        (while 
-          (not (.isAfter m e)) 
-          (do 
-            (swap! coll conj (assoc {} 
-                                    :value (.format m "H:mm")
-                                    :opt (.format m "h:mm a"))) 
-            (.add m (clj->js i))))))
-    (select (dissoc attrs :start :end :interval) opts)
-    ))
+        no      (option :value nil noop)
+        opts    (cell= (cons no 
+                             (map #(option :value (:value %) (:opt %)) coll)))
+        i       {:minute interval}
+        m     (js/moment. start "HH:mm")
+        e     (js/moment. end "HH:mm")]
+    (while 
+              (not (.isAfter m e)) 
+              (do 
+                (swap! coll conj (assoc {} 
+                                        :value (.format m "H:mm")
+                                        :opt (.format m "h:mm a"))) 
+                (.add m (clj->js i))))
+    (select (dissoc attrs :start :end :interval :noop) opts)))
 
-(defelem ui-toggle [{:keys [trigger hidden? effect options duration] 
-                     :or {duration 500 options {}}
+(defelem ui-toggle [{:keys [trigger hide effect options duration group] 
+                     :or {duration 500 options {} hide? true}
                      :as attr} kids]
   (let [div-id      (str (gensym))
-        elem-attrs  (dissoc attr trigger hidden? effect options duration)]
+        elem-attrs  (dissoc attr :trigger :hide? :effect :options :duration)]
     (with-let [elem (div (assoc elem-attrs :id div-id) kids)]
-      ;(.log js/console elem)
+      (if hide (.hide (js/jQuery elem)) (.show (js/jQuery elem)))
       (with-init! 
-        (when hidden? (.hide (js/jQuery elem)))
+        (cell= (when (and group (not= ((keyword group) toggle-groups) elem))
+                 (.hide 
+                    (js/jQuery elem) 
+                    (clj->js effect) 
+                    (clj->js options) 
+                    duration)))
         (.click 
           (js/jQuery (str "#" trigger)) 
-          #(.toggle 
-             (js/jQuery elem) 
-             (clj->js effect) 
-             (clj->js options) 
-             duration))))))
+          #(if (.is (js/jQuery elem) ":visible")
+                        (do 
+                          (when group
+                            (swap! toggle-groups assoc (keyword group) nil))
+                          (.hide  
+                            (js/jQuery elem) 
+                            (clj->js effect) 
+                            (clj->js options) 
+                            duration))
+                        (do 
+                          (when group
+                            (swap! toggle-groups assoc (keyword group) elem))
+                          (.show  
+                            (js/jQuery elem)
+                            (clj->js effect) 
+                            (clj->js options) 
+                            duration))))))))
 
 (defc= stops            (mapv #(assoc % 
                                       :opts {:icon stop-image} 
@@ -127,18 +145,20 @@
 (defc rt-fn              nil)
 
 
-;(cell= ((log "[solution]")  (clj->js solution)))
+(cell= ((log "[tw]")  time-windows ))
 (cell= (if error ((log "[error]") (:trace error))))
 
 (add-initfn! (fn [] (do (ept-state))))
-
+(defn add-time-constraint! [id which constraint]
+  (let [c  (if (= constraint "") nil constraint)]
+    (swap! time-windows assoc-in [id which c])))
 (defn seconds->hms [seconds]
   (let [h   (quot seconds 3600)
         m   (quot (rem  seconds 3600) 60)
         s   (rem (rem seconds 3600) 60)]
     (g/format "%02d:%02d:%02d" h m s)))
 
-(defn meters-to-miles [meters]
+(defn meters->miles [meters]
   (g/format "%.2f miles" (/ (js/parseInt meters) meters-per-mile)))
 
 (defn route [e]

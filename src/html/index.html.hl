@@ -172,7 +172,7 @@
               <div class="stops-inner">
                 <ul class="nav nav-sidebar">
                 <loop-tpl 
-                    bind-ids='{{[cb# btn#] }}'
+                    bind-ids='{{[cb# btn# tws# twe#] }}'
                     bindings='{{ [[i {:keys [id label address] :as the-stop}] (cell= (map-indexed vector app/stops))] }}'>
                   <li>
                     <div>
@@ -181,9 +181,16 @@
                                 do-attr='{{ (cell= {:checked (contains? (set app/selected-stops) id)}) }}' />
                       </span><span class="glyphicon glyphicon-time" id='{{ btn# }}'></span>
                       <strong style="margin-left: 8px;" text='{{ label }}'></strong><br>
-                      <app.ui-toggle trigger='{{ btn# }}' effect="blind" hidden?="true" options='{{ {:easing "linear"} }}'>
-                      <span>deliver between<br> 
-                        <app.time-select start="08:00" end="18:00" interval="60"/> and <app.time-select start="08:30" end="18:00" interval="60"/></span>
+                      <app.ui-toggle trigger='{{ btn# }}' effect="blind" hide='{{ true }}' options='{{ {:easing "linear"} }}' group="time-window">
+                        <div class="ui-widget-content ui-corner-all" style="margin-left: 20px;">
+                          <span style="width: 100%; text-align: center;">deliver between</span><br> 
+                          <span>
+                            <app.time-select id='{{ tws# }}' noop="start" start="08:00" end="18:00" interval="60" 
+                              change='{{ #(app/add-time-constraint! @id :start (val-id tws#)) }}'/> and 
+                            <app.time-select id='{{ twe# }}' noop="end" start="09:00" end="18:00" interval="60" 
+                              change='{{ #(app/add-time-constraint! @id :end (val-id twe#)) }}'/>
+                          </span>
+                        </div>
                       </app.ui-toggle>
                       <!--span text='{{ address }}'></span><br-->
                     </div>
@@ -260,7 +267,7 @@
                       <div>
                         <loop-tpl bindings='{{ [[i {:keys [distance duration]} ] (cell= (map-indexed vector (if-not (nil? app/solution) (:routes app/solution) "a")))] }}'>
                           <div style='{{ (cell= (do (str "color: " (nth app/colors i "black") ";"))) }}'
-                         text='{{ (cell= (if (not (nil? distance)) (str "Trip Total: " (app/meters-to-miles distance) "  " (app/seconds->hms duration)) "somethings wrong")) }}'/>
+                         text='{{ (cell= (if (not (nil? distance)) (str "Trip Total: " (app/meters->miles distance) "  " (app/seconds->hms duration)) "somethings wrong")) }}'/>
                           <br/>
                         </loop-tpl>
                       </div>
