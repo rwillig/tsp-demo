@@ -4,7 +4,8 @@
 
 
 (set-env!
-  :dependencies '[ [tailrecursion/hoplon                    "5.10.24"]
+  :dependencies '[ [org.clojure/clojure                     "1.7.0-alpha4"] 
+                   [tailrecursion/hoplon                    "5.10.24"]
                    [io.hoplon/google.jsapi                  "0.3.5"]
                    [ring                                    "1.3.1"]
                    [org.clojure/tools.nrepl                 "0.2.5"]
@@ -12,7 +13,7 @@
                    [tailrecursion/boot.task                 "2.2.4"]
                    [tailrecursion/boot.notify               "2.0.2"]
                    [tailrecursion/boot.ring                 "0.2.1"]
-                   [tsp                                     "2.1.0"]
+                   [tsp                                     "2.1.1"]
                   ]
   :out-path     "resources/public"
   :src-paths    #{"src" "src/clj" })

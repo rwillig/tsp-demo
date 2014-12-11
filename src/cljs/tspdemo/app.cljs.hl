@@ -11,11 +11,26 @@
         [tailrecursion.hoplon             :as w :refer  [add-initfn!]]
         [tailrecursion.castra             :as c :refer  [mkremote]]))
 
+(defn dissoc-in
+    "Dissociates an entry from a nested associative structure returning a new
+    nested structure. keys is a sequence of keys. Any empty maps that result
+    will not be present in the new structure."
+    [m  [k & ks :as keys]]
+      (if ks
+        (if-let  [nextmap  (get m k)]
+          (let  [newmap  (dissoc-in nextmap ks)]
+            (if  (seq newmap)
+                (assoc m k newmap)
+                (dissoc m k)))
+          m)
+        (dissoc m k)))
+
 (def max-trucks 6)
 (def meters-per-mile 1609.34)
 (def depot-image  "icons/warehouse-2.png")
 (def stop-image "icons/patisserie.png")
 (def fmt-route-image "icons/%d/number_%d.png")
+(def fmt-notify-image "icons/%d/symbol_excla.png")
 (def colors ["#e02121" "#bf21de" "#1919cc" "#1be0d0" "#1bde28" "#dec41d"])
 (reset! api-key "AIzaSyDGqkxjAuq4IeG7rUt6C33Jsiv41bkQfBk")  
 (def log #(fn [x] (.log js/console % (clj->js x))))
@@ -45,6 +60,8 @@
 (defc selected-stops   [])
 (defc selected-depot   nil)
 (defc center           {:lat 25.763 :lon -80.331 })
+(defc shift-start      (js/moment. "08:00" "HH:mm"))
+(defc shift-end        (js/moment. "18:00" "HH:mm"))
 (defc map-zoom         {:zoom 10})
 (defc map-ctrl         {:mapTypeControl false :streetViewControl false})
 (defc= map-styles      {:styles  (js->clj (.parse js/JSON map-style))})
@@ -57,6 +74,30 @@
 
 (defc toggle-groups     {})
 (defc time-windows      {})
+(defn diff-in-seconds [e b]
+  (let [b   (js/parseInt (.format b "X"))
+        e   (js/parseInt (.format e "X"))]
+    (- e b )))
+
+(defc= constraints 
+  (let [ss  (into #{} selected-stops)
+        cs  (into {} (filter 
+              #(contains? ss (key %)) 
+              time-windows))]
+    (into {} (map #(let 
+                 [s  (:start (val %))
+                  e  (:end (val %))
+                  s  (if  s 
+                          (js/moment. s  "HH:mm") 
+                          (.clone shift-start))
+                  e  (if  e 
+                          (js/moment e  "HH:mm")  
+                          (.clone shift-end))
+                  si (diff-in-seconds s shift-start)
+                  ei (diff-in-seconds e shift-start)]
+      (assoc {} (key %) {:start si :end ei})) 
+      cs))))
+
 (defelem time-select [{:keys [start end interval noop]
                        :or {interval 30 start "08:00" end "18:00" noop "choose"}
                        :as attrs} _]
@@ -110,28 +151,41 @@
                             (clj->js options) 
                             duration))))))))
 
-(defc= stops            (mapv #(assoc % 
-                                      :opts {:icon stop-image} 
-                                      :lon (:lng %) 
-                                      :info (info 
-                                              :title 
-                                              (:label %) 
-                                              :body (:address %))) 
+(defc= routes           (mapv #(assoc %1 :color %2) (:routes solution) colors))
+(defc= stops            (mapv #(let [c  (find constraints (:id %)) 
+                                     s  (assoc % 
+                                          :opts {:icon stop-image} 
+                                          :lon (:lng %) 
+                                          :info (info 
+                                                  :title 
+                                                  (:label %) 
+                                                  :body (:address %)))]
+                                 (if (nil? c) s (assoc s :constraint (val c)))) 
                               (:stops state)))
-(defc= depots           (mapv #(assoc % :opts {:icon depot-image} :lon (:lng %) :info (info :title (:label %) :body (:address %))) (:depots state)))
-(defc= markers          (let [ss   (into #{} selected-stops)
-                              ms   (if solution
-                                    (do
-                                      (flatten (map (fn [route i color] 
-                                              (let [nodes (into [] (rest (butlast (:route route))))]
-                                                (map (fn [node cnt] 
-                                                        (let [stop    (first (filter #(= node (:id %)) stops))
-                                                              icon    (g/format fmt-route-image i cnt)]
-                                                          (assoc-in stop [:opts :icon] icon))) 
-                                                      nodes (range 1 (inc (count nodes)))))) 
-                                            (:routes solution) (range 1 (inc (count (:routes solution)))) colors)))
-                                    (into [] (filter #(contains? ss (:id %)) stops)))] 
-                         (conj ms  (first (filter #(= selected-depot (:id %)) depots)))))
+(defc= depots           (mapv #(assoc % :opts {:icon depot-image} 
+                                        :lon (:lng %) 
+                                        :info (info 
+                                                :title (:label %) 
+                                                :body (:address %))) 
+                              (:depots state)))
+(defc= markers          
+  (let [ss  (into #{} selected-stops)
+        ms  (if solution
+              (flatten 
+                (map (fn [[i route]] 
+                  (let [nodes (into [] (:stops route))
+                        i     (inc i)
+                        unmet (into #{} (map :id (:unmet route)))]
+                    (map (fn [[cnt node]] 
+                      (let [stop    (first (filter #(= node (:id %)) stops))
+                            icon    (if (contains? unmet (:id stop)) 
+                                      (g/format fmt-notify-image i)
+                                      (g/format fmt-route-image i (inc cnt)))]
+                        (assoc-in stop [:opts :icon] icon))) 
+                          (map-indexed vector nodes) ))) 
+                  (map-indexed vector routes)))
+              (into [] (filter #(contains? ss (:id %)) stops)))] 
+    (conj ms  (first (filter #(= selected-depot (:id %)) depots)))))
 
 (defc= polylines        (flatten (mapv (fn [route i color] 
                               (let [lines (:polylines route)
@@ -145,13 +199,19 @@
 (defc rt-fn              nil)
 
 
-(cell= ((log "[tw]")  time-windows ))
+;(cell= ((log "[tw]")  time-windows))
+;(cell= ((log "[m]")  markers))
+;(cell= ((log "[r]")  routes))
 (cell= (if error ((log "[error]") (:trace error))))
 
 (add-initfn! (fn [] (do (ept-state))))
+
 (defn add-time-constraint! [id which constraint]
   (let [c  (if (= constraint "") nil constraint)]
-    (swap! time-windows assoc-in [id which c])))
+    (if (nil? c)
+      (swap! time-windows dissoc-in [id which])
+      (swap! time-windows assoc-in [id which] c))))
+
 (defn seconds->hms [seconds]
   (let [h   (quot seconds 3600)
         m   (quot (rem  seconds 3600) 60)
@@ -163,25 +223,30 @@
 
 (defn route [e]
   (if @ready?
-    (let [stops       (mapv 
-                        (fn [x] (select-keys x [:id 
-                                                :address 
-                                                :label 
-                                                :lat 
-                                                :lng])) 
-                        (filter 
-                          #(contains? (into #{} @selected-stops) (:id %)) 
-                          @stops))
-          d           (first (filter #(= @selected-depot (:id %)) @depots))
-          depot       (select-keys d [:id :address :label :lat :lng])
-          l           (.create  js/Ladda (.-currentTarget e))
-          ps          {:stops stops 
-                       :depot depot 
-                       :trucks @trucks 
-                       :capacity @capacity}
-          prom        (ept-route ps)]
-      (.start l)
-      (.always prom #(.stop l)))
+    (do
+      (reset! error nil)
+      (let [ls          (cell @stops)
+            stops       (mapv 
+                          (fn [x] (select-keys x [:id 
+                                                  :address 
+                                                  :label 
+                                                  :constraint
+                                                  :lat 
+                                                  :lng])) 
+                          (filter 
+                            #(contains? (into #{} @selected-stops) (:id %)) 
+                            @stops))
+            d           (first (filter #(= @selected-depot (:id %)) @depots))
+            depot       (select-keys d [:id :address :label :lat :lng])
+            l           (.create  js/Ladda (.-currentTarget e))
+            ps          {:stops stops 
+                        :depot depot 
+                        :trucks @trucks 
+                        :constraints (when (seq @constraints) @constraints)
+                        :capacity @capacity}
+            prom        (ept-route ps)]
+        (.start l)
+        (.always prom #(.stop l))))
     (js/alert "Not Ready")))
 
 (defn toggle-stop! [id]

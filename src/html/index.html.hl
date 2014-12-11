@@ -265,9 +265,9 @@
                   <div style="background-color: bisque; border: solid 2px; text-align: center;">
                     <div style="padding-left: 4px; padding-right: 4px;">
                       <div>
-                        <loop-tpl bindings='{{ [[i {:keys [distance duration]} ] (cell= (map-indexed vector (if-not (nil? app/solution) (:routes app/solution) "a")))] }}'>
-                          <div style='{{ (cell= (do (str "color: " (nth app/colors i "black") ";"))) }}'
-                         text='{{ (cell= (if (not (nil? distance)) (str "Trip Total: " (app/meters->miles distance) "  " (app/seconds->hms duration)) "somethings wrong")) }}'/>
+                        <loop-tpl bindings='{{ [[i {:keys [distance duration color] :as r} ] (cell= (map-indexed vector app/routes))] }}'>
+                        <div style='{{ (cell= (str "color: " color ";")) }}'
+                         text='{{ (cell= (if (not (nil? distance)) (str "Trip Total: " (app/meters->miles distance) "  " (app/seconds->hms duration)))) }}'/>
                           <br/>
                         </loop-tpl>
                       </div>

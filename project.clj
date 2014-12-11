@@ -10,14 +10,14 @@
                                                               :passphrase :env 
                                                               :username :env}}
   :uberjar-name "tsp-demo-standalone.jar"
-  :dependencies [  [org.clojure/clojure                   "1.6.0"]
+  :dependencies [  [org.clojure/clojure                   "1.7.0-alpha4"]
                    [tailrecursion/hoplon                  "5.10.24"]
                    [io.hoplon/twitter.bootstrap           "0.1.0"]
                    [io.hoplon/google.jsapi                "0.3.5"]
                    [ring                                  "1.3.1"]
                    [org.clojure/tools.nrepl               "0.2.5"]
                    [raywillig/ring-middleware-index-file  "1.0.7"]
-                   [tsp                                   "2.1.0"]
+                   [tsp                                   "2.1.1"]
                   ]
                 
   :source-paths ["src/clj" "src/html" "src/cljs"]

@@ -44,7 +44,7 @@
             (:db @(:conn @cache)) c/edge-coll {:id id} ["points"]) 
           :_id)))))
 
-(defn tour-stops [stops vertices]
+(defn tour-edges [stops vertices]
   (mapv #(mapv (fn[x] (nth stops x)) %) (vertices->edges vertices)))
 
 (defn tour-polylines [ts]
@@ -56,13 +56,27 @@
 
 (defn get-route [stops]
   (let [g       (graph/concurrent-google-graph stops  @cache)
-        c       (ac/make-ant-colony-solver-config nil)
-        sol     (ac/make-ant-colony-solution g c)
+        ;dummy   (println g)
+        f       (filter #(not (nil? (:constraint %))))
+        m       (map #(assoc {} (.indexOf stops %) (:constraint %)))
+        cs      (into {} (comp f m)  stops) 
+        c       (ac/make-ant-colony-solver-config 
+                  (when (seq cs) {:constraint :time-window}))
+        sol     (if (seq cs) 
+                  (ac/make-constrained-solution g c cs)
+                  (ac/make-ant-colony-solution g c))
         s       (ac/ant-colonies sol 10) 
-        ts      (tour-stops stops (:tour s))
+        ts      (tour-edges stops (:tour s))
+        u       (mapv #(assoc {} 
+                          :id (:id (nth stops (key %))) 
+                          :constraint (val %)) 
+                      (:unmet s))
         p       (tour-polylines ts)]
     (assoc {} 
-           :route (route (:tour s) stops) 
+           :depot (route (vector (:depot s)) stops)
+           :stops (route (:stops s) stops)
+           :terminal (route (vector (:terminal s)) stops)
+           :unmet  u
            :polylines p 
            :distance (:distance s) 
            :duration (:duration s))))
