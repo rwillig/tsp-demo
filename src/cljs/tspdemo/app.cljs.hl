@@ -68,18 +68,18 @@
 (defc= map-opts        (into {} (filter #(not (nil? (val %))) (merge map-zoom map-ctrl map-styles))))
 
 (declare markers meters->miles seconds->hms)
-(defelem info  [{:keys  [id title body]} _]
-  (let [mark (cell=  (first (filter #(= (:id %) id) markers)))]
-    (div 
-      (strong title )
-      (p body)
-      (div :toggle (cell= (not (nil? (:rt-position mark)))) 
-          (div :text (cell= (str "Route Position: " (:rt-position mark))))
-          (div :text (cell= (str "Miles from route start: " (meters->miles (:distance mark)))))
-          (div :text (cell= (let [t  (.clone shift-start)
-                                t  (.add t (clj->js {:seconds (:duration mark)}))] 
-                            (str "Time of arrival: " (.format t "HH:mm a"))))))
-     )))
+(defelem info  [{:keys  [title body pos idis idur]} _]
+  (div 
+    (strong title )
+    (p body)
+    (if pos
+      (div 
+        (div (str "Route Position: " pos))
+        (div (str "Miles from route start: " (meters->miles idis)))
+        (div (let [t  (.clone @shift-start)
+                   t  (.add t (clj->js {:seconds idur}))] 
+                   (str "Time of arrival: " (.format t "HH:mm a"))))))
+     ))
 
 (defc toggle-groups     {})
 (defc time-windows      {})
@@ -193,11 +193,15 @@
                             icon    (if (contains? unmet (:id stop)) 
                                       (g/format fmt-notify-image i)
                                       (g/format fmt-route-image i (inc cnt)))
+                            info    (info
+                                      :id (:id stop)
+                                      :title (:label stop)
+                                      :body  (:address stop)
+                                      :pos   (inc cnt)
+                                      :idis  di
+                                      :idur  du)
                             stop    (assoc-in stop [:opts :icon] icon)]
-                        (assoc stop 
-                               :distance di 
-                               :duration du 
-                               :rt-position (inc cnt)))) 
+                        (assoc stop :info info ))) 
                           (map-indexed vector nodes) dis dus ))) 
                   (map-indexed vector routes)))
               (into [] (filter #(contains? ss (:id %)) stops)))] 
@@ -216,7 +220,7 @@
 
 
 ;(cell= ((log "[s]")  (:stops state)))
-(cell= ((log "[m]")  markers))
+;(cell= ((log "[m]")  markers))
 (cell= ((log "[r]")  routes))
 (cell= (if error ((log "[error]") (:trace error))))
 
