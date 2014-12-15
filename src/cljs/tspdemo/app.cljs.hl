@@ -67,10 +67,19 @@
 (defc= map-styles      {:styles  (js->clj (.parse js/JSON map-style))})
 (defc= map-opts        (into {} (filter #(not (nil? (val %))) (merge map-zoom map-ctrl map-styles))))
 
-(defelem info  [{:keys  [title body]} _]
-   (div 
-     (strong title)
-     (p body)))
+(declare markers meters->miles seconds->hms)
+(defelem info  [{:keys  [id title body]} _]
+  (let [mark (cell=  (first (filter #(= (:id %) id) markers)))]
+    (div 
+      (strong title )
+      (p body)
+      (div :toggle (cell= (not (nil? (:rt-position mark)))) 
+          (div :text (cell= (str "Route Position: " (:rt-position mark))))
+          (div :text (cell= (str "Miles from route start: " (meters->miles (:distance mark)))))
+          (div :text (cell= (let [t  (.clone shift-start)
+                                t  (.add t (clj->js {:seconds (:duration mark)}))] 
+                            (str "Time of arrival: " (.format t "HH:mm a"))))))
+     )))
 
 (defc toggle-groups     {})
 (defc time-windows      {})
@@ -157,16 +166,17 @@
                                           :opts {:icon stop-image} 
                                           :lon (:lng %) 
                                           :info (info 
-                                                  :title 
-                                                  (:label %) 
-                                                  :body (:address %)))]
+                                                  :id     (:id %)
+                                                  :title  (:label %) 
+                                                  :body   (:address %)))]
                                  (if (nil? c) s (assoc s :constraint (val c)))) 
                               (:stops state)))
 (defc= depots           (mapv #(assoc % :opts {:icon depot-image} 
                                         :lon (:lng %) 
                                         :info (info 
-                                                :title (:label %) 
-                                                :body (:address %))) 
+                                                :id     (:id %)
+                                                :title  (:label %) 
+                                                :body   (:address %))) 
                               (:depots state)))
 (defc= markers          
   (let [ss  (into #{} selected-stops)
@@ -175,14 +185,20 @@
                 (map (fn [[i route]] 
                   (let [nodes (into [] (:stops route))
                         i     (inc i)
+                        dis   (reductions + (-> route :intra :distance))
+                        dus   (reductions + (-> route :intra :duration))
                         unmet (into #{} (map :id (:unmet route)))]
-                    (map (fn [[cnt node]] 
+                    (map (fn [[cnt node] di du] 
                       (let [stop    (first (filter #(= node (:id %)) stops))
                             icon    (if (contains? unmet (:id stop)) 
                                       (g/format fmt-notify-image i)
-                                      (g/format fmt-route-image i (inc cnt)))]
-                        (assoc-in stop [:opts :icon] icon))) 
-                          (map-indexed vector nodes) ))) 
+                                      (g/format fmt-route-image i (inc cnt)))
+                            stop    (assoc-in stop [:opts :icon] icon)]
+                        (assoc stop 
+                               :distance di 
+                               :duration du 
+                               :rt-position (inc cnt)))) 
+                          (map-indexed vector nodes) dis dus ))) 
                   (map-indexed vector routes)))
               (into [] (filter #(contains? ss (:id %)) stops)))] 
     (conj ms  (first (filter #(= selected-depot (:id %)) depots)))))
@@ -199,9 +215,9 @@
 (defc rt-fn              nil)
 
 
-;(cell= ((log "[tw]")  time-windows))
-;(cell= ((log "[m]")  markers))
-;(cell= ((log "[r]")  routes))
+;(cell= ((log "[s]")  (:stops state)))
+(cell= ((log "[m]")  markers))
+(cell= ((log "[r]")  routes))
 (cell= (if error ((log "[error]") (:trace error))))
 
 (add-initfn! (fn [] (do (ept-state))))

@@ -6,7 +6,7 @@
   (:require [castra.config :as c])
   (:require [geo-cache.cache :as ca :refer [shahash]])
   (:require [geo-cache.mongo-cache :as m])
-  (:require [geo-graph.graph :refer [vertices->edges]])
+  (:require [geo-graph.graph :refer [vertices->edges intra]])
   (:require [tsp.capacity-cluster :as cc])
   (:require [geo-graph.google :as graph])
   (:require [tailrecursion.castra :refer [defrpc]])
@@ -56,7 +56,6 @@
 
 (defn get-route [stops]
   (let [g       (graph/concurrent-google-graph stops  @cache)
-        ;dummy   (println g)
         f       (filter #(not (nil? (:constraint %))))
         m       (map #(assoc {} (.indexOf stops %) (:constraint %)))
         cs      (into {} (comp f m)  stops) 
@@ -66,6 +65,8 @@
                   (ac/make-constrained-solution g c cs)
                   (ac/make-ant-colony-solution g c))
         s       (ac/ant-colonies sol 10) 
+        idis    (intra g :distance (vertices->edges (:tour s)))
+        idur    (intra g :duration (vertices->edges (:tour s)))
         ts      (tour-edges stops (:tour s))
         u       (mapv #(assoc {} 
                           :id (:id (nth stops (key %))) 
@@ -77,6 +78,7 @@
            :stops (route (:stops s) stops)
            :terminal (route (vector (:terminal s)) stops)
            :unmet  u
+           :intra {:distance idis :duration idur}
            :polylines p 
            :distance (:distance s) 
            :duration (:duration s))))
