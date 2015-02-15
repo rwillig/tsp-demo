@@ -185,7 +185,7 @@
                         <div class="ui-widget-content ui-corner-all" style="margin-left: 20px;">
                           <span style="width: 100%; text-align: center;">deliver between</span><br> 
                           <span>
-                            <app.time-select id='{{ tws# }}' noop="start" start="08:00" end="22:00" interval="30" 
+                            <app.time-select id='{{ tws# }}' noop="start" start="08:00" end="18:00" interval="60" 
                               change='{{ #(app/add-time-constraint! @id :start (val-id tws#)) }}'/> and 
                             <app.time-select id='{{ twe# }}' noop="end" start="09:00" end="18:00" interval="60" 
                               change='{{ #(app/add-time-constraint! @id :end (val-id twe#)) }}'/>

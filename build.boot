@@ -4,8 +4,7 @@
 
 
 (set-env!
-  :dependencies '[ [org.clojure/clojure                     "1.7.0-alpha4"] 
-                   [tailrecursion/hoplon                    "5.10.24"]
+  :dependencies '[ [tailrecursion/hoplon                    "5.10.24"]
                    [io.hoplon/google.jsapi                  "0.3.5"]
                    [ring                                    "1.3.1"]
                    [org.clojure/tools.nrepl                 "0.2.5"]

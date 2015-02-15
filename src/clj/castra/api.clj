@@ -56,9 +56,9 @@
 
 (defn get-route [stops]
   (let [g       (graph/concurrent-google-graph stops  @cache)
-        f       (filter #(not (nil? (:constraint %))))
-        m       (map #(assoc {} (.indexOf stops %) (:constraint %)))
-        cs      (into {} (comp f m)  stops) 
+        f       (filter #(not (nil? (:constraint %))) stops)
+        m       (map #(assoc {} (.indexOf stops %) (:constraint %)) f)
+        cs      (into {} m) 
         c       (ac/make-ant-colony-solver-config 
                   (when (seq cs) {:constraint :time-window}))
         sol     (if (seq cs) 
@@ -98,7 +98,9 @@
   (let [start#   (. System (currentTimeMillis))  
         clusters (get-clusters ps)
         d        (:depot ps)
+        ts       (count (distinct (mapv :truck clusters)))
         t        (java.lang.Integer/parseInt (:trucks ps))
+        t        (min t ts)
         rts      (into [] (map #(filter (fn [x] (= (:truck x) (inc %))) clusters) (range t)))
         sols     (into [] (pmap #(get-route (cons d %)) rts))
         t        (format "%,5.2f" (/ (double (- (. System (currentTimeMillis)) start#)) 1000.0))

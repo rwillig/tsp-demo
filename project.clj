@@ -10,7 +10,7 @@
                                                               :passphrase :env 
                                                               :username :env}}
   :uberjar-name "tsp-demo-standalone.jar"
-  :dependencies [  [org.clojure/clojure                   "1.7.0-alpha4"]
+  :dependencies [  [org.clojure/clojure                   "1.6.0"]
                    [tailrecursion/hoplon                  "5.10.24"]
                    [io.hoplon/twitter.bootstrap           "0.1.0"]
                    [io.hoplon/google.jsapi                "0.3.5"]
