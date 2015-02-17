@@ -1,41 +1,67 @@
-#!/usr/bin/env boot
-
-#tailrecursion.boot.core/version "2.5.0"
-
-
 (set-env!
-  :dependencies '[ [tailrecursion/hoplon                    "5.10.24"]
-                   [io.hoplon/google.jsapi                  "0.3.5"]
+  :dependencies  '[[adzerk/boot-cljs                        "0.0-2727-0" :scope "test"]
+                   [adzerk/boot-cljs-repl                   "0.1.8"      :scope "test"]
+                   [adzerk/boot-reload                      "0.2.4"      :scope "test"]
+                   [pandeiro/boot-http                      "0.6.1"      :scope "test"]
+                   [tailrecursion/boot-ring                 "0.1.0"      :scope "test"]
+                   [rwillig/boot-castra                     "0.1.0-SNAPSHOT" :scope "test"]
+                   [tailrecursion/hoplon                    "6.0.0-SNAPSHOT"]
+                   [cljsjs/moment                           "2.9.0-0"]
+                   [tailrecursion/castra                    "3.0.0"]
                    [ring                                    "1.3.1"]
-                   [org.clojure/tools.nrepl                 "0.2.5"]
-                   [raywillig/ring-middleware-index-file    "1.0.7"]
-                   [tailrecursion/boot.task                 "2.2.4"]
-                   [tailrecursion/boot.notify               "2.0.2"]
-                   [tailrecursion/boot.ring                 "0.2.1"]
                    [tsp                                     "2.1.1"]
-                  ]
-  :out-path     "resources/public"
-  :src-paths    #{"src" "src/clj" })
+                   [raywillig/ring-middleware-index-file    "1.0.7"]
+                   [hoplon/google-maps                      "3.18.0"]
+                   [hoplon/twitter-bootstrap                "0.1.0"]]
+  :source-paths   #{"src/clj" "src/cljs" "src/html"}
+  :asset-paths    #{"assets"}
+  :target-path    "resources/public")
 
 (require
-  '[tailrecursion.hoplon.boot      :refer :all]
-  '[tailrecursion.boot.task.notify :refer [hear]]
-  '[tailrecursion.castra.task      :refer [castra-dev-server]]
-  '[tailrecursion.boot.task.ring   :refer [dev-server]])
+  '[adzerk.boot-cljs :refer [cljs]]
+  '[adzerk.boot-cljs-repl :refer [cljs-repl start-repl]]
+  '[adzerk.boot-reload :refer [reload]]
+  '[pandeiro.boot-http :refer [serve]]
+  '[tailrecursion.boot-ring  :refer [dev-server]]
+  '[rwillig.boot-castra :refer [castra-dev-server]]
+  '[tailrecursion.hoplon.boot :refer [hoplon]])
 
-(add-sync! (get-env :out-path) #{"assets"})
-
-(deftask castra
-  "start castra dev server"
+(deftask pandeiro
+  "dev task using boot-http"
   []
-  (castra-dev-server 'castra.api))
+  (comp 
+    (watch)
+    (hoplon :pretty-print true)
+    (cljs :optimizations :none :unified-mode true)
+    (serve :dir (get-env :target-path) :handler 'castra.core/app)
+    (speak)))
 
-(deftask development
-  "Build project for development, local dev server."
+(deftask castra-dev
+  "Build for local development."
   []
-  (comp (watch) (hear) (hoplon {:pretty-print true :source-map true :prerender true}) (castra)))
+  (comp
+    (watch)
+    (hoplon :pretty-print true)
+    (cljs :optimizations :none :unified-mode true)
+    (castra dev-server :namespaces 'castra.api)
+    (speak)))
 
-(deftask production
-  "Build project for production."
+(deftask dev
+  "Build for local development."
   []
-  (hoplon {:optimizations :advanced}))
+  (comp
+    (watch)
+    (hoplon :pretty-print true)
+    (cljs :optimizations :none :unified-mode true)
+    (dev-server)
+    (speak)))
+
+(deftask prod
+  "Build for production deployment."
+  []
+  (comp
+    (watch)
+    (hoplon)
+    (cljs :optimizations :advanced)
+    ;(serve :dir (get-env :target-path))
+    (speak)))

@@ -7,6 +7,7 @@
         [hoplon.google.jsapi.loader       :as l :refer  [api-key]]
         [goog.string                      :as g]
         [goog.string.format               :as gf]
+        [cljsjs.moment]
         [tailrecursion.javelin            :as j :refer  [cell]]
         [tailrecursion.hoplon             :as w :refer  [add-initfn!]]
         [tailrecursion.castra             :as c :refer  [mkremote]]))

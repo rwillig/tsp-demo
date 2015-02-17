@@ -1,5 +1,4 @@
 (ns castra.api
-  (:require [clojure.tools.nrepl.server      :refer [start-server stop-server]])
   (:require [castra.rules :refer [allow deny]])
   (:require [monger.core :as mg])
   (:require [monger.collection :as mc])
