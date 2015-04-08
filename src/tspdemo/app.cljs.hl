@@ -8,6 +8,7 @@
         [goog.string                      :as g]
         [goog.string.format               :as gf]
         [cljsjs.moment]
+        [cljsjs.jquery-ui]
         [tailrecursion.javelin            :as j :refer  [cell]]
         [tailrecursion.hoplon             :as w :refer  [add-initfn!]]
         [tailrecursion.castra             :as c :refer  [mkremote]]))
@@ -259,16 +260,18 @@
                             @stops))
             d           (first (filter #(= @selected-depot (:id %)) @depots))
             depot       (select-keys d [:id :address :label :lat :lng])
-            l           (.create  js/Ladda (.-currentTarget e))
+            ;l           (.create  js/Ladda (.-currentTarget e))
             ps          {:stops stops 
                         :depot depot 
                         :trucks @trucks 
                         :constraints (when (seq @constraints) @constraints)
                         :capacity @capacity}
             prom        (ept-route ps)]
-        (.start l)
-        (.always prom #(.stop l))))
+       ; (.start l)
+       ; (.always prom #(.stop l))
+       ))
     (js/alert "Not Ready")))
+
 
 (defn toggle-stop! [id]
   (let [stop      (first (filter #(= id (:id %)) @stops))

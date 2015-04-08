@@ -1,5 +1,4 @@
 (ns castra.core
-  ;(:gen-class)
   (:require
     [ring.adapter.jetty              :as jetty]
     [ring.middleware.resource        :refer [wrap-resource]]
@@ -15,7 +14,8 @@
   (->
     (castra  'castra.api)
     (wrap-session {:store (cookie-store {:key "a 16-byte secret"})})
-    (wrap-resource "public")    
+    (wrap-resource "public")
+    (wrap-file "resources/public")    
     (wrap-index-paths "/index.html")    
     (wrap-file-info)))
 

@@ -9,17 +9,15 @@
 (def rt-home "#/home")
 (def rt-demo "#/demo")
 (def route (route-cell rt-home))
-
 </script>
 
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
-    <meta name="author" content="">
-    <link rel="icon" href="../../favicon.ico">
+    <html-meta charset="utf-8">
+    <html-meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <html-meta name="viewport" content="width=device-width, initial-scale=1">
+    <html-meta name="description" content="">
+    <html-meta name="author" content="">
 
     <title>TSP Demo - Demonstration of the Capacitated Vehicle Routing Problem</title> 
 
@@ -29,7 +27,7 @@
     <link href="css/bootstrap.css" rel="stylesheet">
     <link href="css/bootstrap-theme.css" rel="stylesheet">
     <link href="css/ladda-themeless.css" rel="stylesheet">
-    <link href="css/jquery-ui.css" rel="stylesheet">
+    <link href="css/jquery-ui.inc.css" rel="stylesheet">
 
     <link href="css/starter-template.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
