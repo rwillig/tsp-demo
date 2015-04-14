@@ -1,10 +1,9 @@
 (ns castra.api
   (:require [castra.rules :refer [allow deny]])
-  (:require [monger.core :as mg])
-  (:require [monger.collection :as mc])
+  (:require [taoensso.faraday :as far])
   (:require [castra.config :as c])
   (:require [geo-cache.cache :as ca :refer [shahash]])
-  (:require [geo-cache.mongo-cache :as m])
+  (:require [geo-cache.redis-cache :as rc])
   (:require [geo-graph.graph :refer [vertices->edges intra]])
   (:require [tsp.capacity-cluster :as cc])
   (:require [geo-graph.google :as graph])
@@ -13,35 +12,21 @@
 
 (def fields ["id" "label" "address" "lat" "lng"])
 
-(def cache  (delay (ca/get-cache {:type :mongo 
-                                  :uri c/mongo-uri 
-                                  :db c/db 
-                                  :edge c/edge-coll 
-                                  :address c/address-coll})))
+(def dyndb-creds  {:access-key c/dynamo-access
+                   :secret-key c/dynamo-secret})
+
+(def cache        (ca/get-cache {:type :redis}))
 
 (defn get-depots []
-  (do
-    (when (m/cache-ready? @cache) 
-      (mapv #(dissoc % :_id) 
-            (mc/find-maps 
-              (:db @(:conn @cache)) c/address-coll {:type "depot"} fields)))))
+  (far/scan dyndb-creds :location {:attr-conds {:type [:eq "depot"]}}))
 
 (defn get-stops []
-  (do 
-    (when (m/cache-ready? @cache) 
-      (mapv #(dissoc % :_id) 
-            (mc/find-maps 
-              (:db @(:conn @cache)) c/address-coll {:type "stop"} fields)))))
+  (far/scan dyndb-creds :location {:attr-conds {:type [:eq "stop"]}}))
 
  
 (defn get-polyline [from to]
   (let [id     (shahash from to)]
-    (when (m/cache-ready? @cache) 
-      (:points 
-        (dissoc 
-          (mc/find-one-as-map 
-            (:db @(:conn @cache)) c/edge-coll {:id id} ["points"]) 
-          :_id)))))
+    (:points (rc/get-weight from to))))
 
 (defn tour-edges [stops vertices]
   (mapv #(mapv (fn[x] (nth stops x)) %) (vertices->edges vertices)))
@@ -54,7 +39,7 @@
   (mapv #(:id (nth stops %)) vs))
 
 (defn get-route [stops]
-  (let [g       (graph/concurrent-google-graph stops  @cache)
+  (let [g       (graph/concurrent-google-graph stops  cache)
         f       (filter #(not (nil? (:constraint %))) stops)
         m       (map #(assoc {} (.indexOf stops %) (:constraint %)) f)
         cs      (into {} m) 
@@ -63,7 +48,7 @@
         sol     (if (seq cs) 
                   (ac/make-constrained-solution g c cs)
                   (ac/make-ant-colony-solution g c))
-        s       (ac/ant-colonies sol 10) 
+        s       (ac/ant-colonies sol 4) 
         idis    (intra g :distance (vertices->edges (:tour s)))
         idur    (intra g :duration (vertices->edges (:tour s)))
         ts      (tour-edges stops (:tour s))
@@ -109,6 +94,13 @@
 (defrpc get-routes [ps]
   {:rpc [(allow)]}
   (get-routes* ps))
+
+(defrpc test-cache
+  []
+  {:rpc/prei [(allow)]}
+  (let [stops  (get-stops)
+        a      (-> stops first :address)]
+  (rc/get-weight (first stops) (second stops))))
 
 (defrpc get-state [] 
   {:rpc [(allow)]}

@@ -1,6 +1,7 @@
 (ns tspdemo.app
   (:refer-hoplon :exclude  [center])
   (:require-macros
+        [boot.boot-macros                 :refer  [get-env]]
         [tailrecursion.javelin            :refer  [defc defc= cell=]])
   (:require
         [hoplon.google.jsapi.maps         :as m :refer  [decode-path]]
@@ -10,7 +11,7 @@
         [cljsjs.moment]
         [cljsjs.jquery-ui]
         [tailrecursion.javelin            :as j :refer  [cell]]
-        [tailrecursion.hoplon             :as w :refer  [add-initfn!]]
+        [tailrecursion.hoplon             :as w :refer  [with-init! add-initfn!]]
         [tailrecursion.castra             :as c :refer  [mkremote]]))
 
 (defn dissoc-in
@@ -50,6 +51,7 @@
   {\"featureType\":\"water\",\"stylers\":
   [{\"hue\":3},{\"saturation\":-24.24},{\"lightness\":-38.57}]}]")
 
+(defc castra-url          (get-env  "castra-url"))
 (defc state            nil)
 (defc error            nil)
 (defc loading          nil)
@@ -132,10 +134,11 @@
                      :or {duration 500 options {} hide? true}
                      :as attr} kids]
   (let [div-id      (str (gensym))
-        elem-attrs  (dissoc attr :trigger :hide? :effect :options :duration)]
+        elem-attrs  (dissoc attr :group :trigger :hide? :effect :options :duration)]
     (with-let [elem (div (assoc elem-attrs :id div-id) kids)]
-      (if hide (.hide (js/jQuery elem)) (.show (js/jQuery elem)))
       (with-init! 
+        (.log js/console "trigger is " trigger)
+        (if hide (.hide (js/jQuery elem)) (.show (js/jQuery elem)))
         (cell= (when (and group (not= ((keyword group) toggle-groups) elem))
                  (.hide 
                     (js/jQuery elem) 
@@ -144,8 +147,10 @@
                     duration)))
         (.click 
           (js/jQuery (str "#" trigger)) 
-          #(if (.is (js/jQuery elem) ":visible")
+          #(do (.log js/console "here 1") 
+               (if (.is (js/jQuery elem) ":visible")
                         (do 
+                          (.log js/console "here i am")
                           (when group
                             (swap! toggle-groups assoc (keyword group) nil))
                           (.hide  
@@ -154,13 +159,14 @@
                             (clj->js options) 
                             duration))
                         (do 
+                          (.log js/console "here i am")
                           (when group
                             (swap! toggle-groups assoc (keyword group) elem))
                           (.show  
                             (js/jQuery elem)
                             (clj->js effect) 
                             (clj->js options) 
-                            duration))))))))
+                            duration)))))))))
 
 (defc= routes           (mapv #(assoc %1 :color %2) (:routes solution) colors))
 (defc= stops            (mapv #(let [c  (find constraints (:id %)) 
@@ -215,18 +221,20 @@
                                 (map #(assoc {} :path (decode-path %) :opts opts) lines)))
                             (:routes solution) (range 1 (inc (count (:routes solution)))) colors)))
 
-(defc= ready?           (and (not (nil? selected-depot)) (> (count selected-stops) min-stops ) (empty? solution-loading) (nil? solution)))
-(def ept-state          (mkremote 'castra.api/get-state state error loading))
-(def ept-route          (mkremote 'castra.api/get-routes solution error solution-loading))
 (defc rt-fn              nil)
+(defc= ready?           (and (not (nil? selected-depot)) (> (count selected-stops) min-stops ) (empty? solution-loading) (nil? solution)))
+(def ept-state          (mkremote 'castra.api/get-state state error loading @castra-url))
+(def ept-route          (mkremote 'castra.api/get-routes solution error solution-loading @castra-url))
+(def ept-test-cache     (mkremote 'castra.api/test-cache rt-fn error loading @castra-url))
 
 
-;(cell= ((log "[s]")  (:stops state)))
-;(cell= ((log "[m]")  markers))
-(cell= ((log "[r]")  routes))
+(cell= ((log "[castr]")  castra-url))
+(cell= ((log "[tg]")  toggle-groups))
+(cell= ((log "[cache]") (clj->js rt-fn)))
+(cell= ((log "[r]")  solution))
 (cell= (if error ((log "[error]") (:trace error))))
 
-(add-initfn! (fn [] (do (ept-state))))
+(add-initfn! (fn [] (do (ept-state) (ept-test-cache))))
 
 (defn add-time-constraint! [id which constraint]
   (let [c  (if (= constraint "") nil constraint)]
