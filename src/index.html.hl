@@ -180,7 +180,7 @@
                       </span>
                       <span class="glyphicon glyphicon-time" id='{{ btn# }}'></span>
                       <strong style="margin-left: 8px;" text='{{ label }}'></strong><br>
-                      <app.ui-toggle trigger='{{ btn# }}' effect="blind" hide='{{ false }}' options='{{ {:easing "linear"} }}' group="time-window">
+                      <app.ui-toggle trigger='{{ btn# }}' effect="blind" hide='{{ true }}' options='{{ {:easing "linear"} }}' group="time-window">
                         <div class="ui-widget-content ui-corner-all" style="margin-left: 20px;">
                           <span style="width: 100%; text-align: center;">deliver between</span><br> 
                           <span>

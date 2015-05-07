@@ -1,7 +1,6 @@
 (set-env!
   :dependencies  '[[adzerk/boot-beanstalk                   "0.2.3"           :scope "test"]
-                   [adzerk/boot-cljs                        "0.0-2727-0"      :scope "test"]
-                   [adzerk/boot-cljs-repl                   "0.1.8"           :scope "test"]
+                   [adzerk/boot-cljs                        "0.0-2814-4"      :scope "test"]
                    [adzerk/boot-reload                      "0.2.4"           :scope "test"]
                    [pandeiro/boot-http                      "0.6.1"           :scope "test"]
                    [cljsjs/boot-cljsjs                      "0.4.6"           :scope "test"]
@@ -13,9 +12,10 @@
                    [tailrecursion/castra                    "3.0.0"]
                    [ring                                    "1.3.1"]
                    [raywillig/geo-cache                     "0.0.7"]
+                   [raywillig/geo-graph                     "0.0.6"]
                    [com.taoensso/timbre                     "3.4.0"]
                    [com.taoensso/faraday                    "1.5.0"]
-                   [tsp                                     "2.1.1"]
+                   [tsp                                     "2.1.3"]
                    [hoplon/google-maps                      "3.18.0"]
                    [hoplon/twitter-bootstrap                "0.1.0"]
                    ]
@@ -25,12 +25,11 @@
 
 (require
   '[adzerk.boot-cljs            :refer [cljs]]
-  '[adzerk.boot-cljs-repl       :refer [cljs-repl start-repl]]
   '[adzerk.boot-beanstalk       :refer [beanstalk dockerrun]]
   '[adzerk.boot-reload          :refer [reload]]
   '[pandeiro.boot-http          :refer [serve]]
   '[cljsjs.boot-cljsjs          :refer [from-cljsjs]]
-  '[tailrecursion.boot-hoplon   :refer [hoplon]])
+  '[tailrecursion.boot-hoplon   :refer [hoplon prerender]])
 
 (task-options!
   web          {:serve           'castra.core/app
@@ -74,10 +73,25 @@
   (comp 
     (watch)
     (hoplon :pretty-print true )
+    (prerender)
     (reload)
     (cljs :source-map true :optimizations :none :unified-mode true)
-   (from-cljsjs :profile :development)
-   (sift :to-resource #{#"images" #"\.inc\.css"})
+    (from-cljsjs :profile :development)
+    (sift :to-resource #{#"images" #"\.inc\.css"})
+    (serve  :handler 'castra.core/app :port 8000)
+    (speak)))
+
+(deftask prod
+  "dev task using boot-http"
+  []
+  (comp 
+    (watch)
+    (hoplon :pretty-print true )
+    (prerender)
+    (reload)
+    (cljs :optimizations :advanced)
+    (from-cljsjs :profile :production)
+    (sift :to-resource #{#"images" #"\.inc\.css"})
     (serve  :handler 'castra.core/app :port 8000)
     (speak)))
 
@@ -88,7 +102,7 @@
     (hoplon :pretty-print true )
     (cljs :optimizations :none :unified-mode true :source-map true)))
 
-(deftask prod
+(deftask production
   "Build for production deployment."
   []
   (comp
